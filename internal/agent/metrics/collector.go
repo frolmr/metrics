@@ -5,14 +5,11 @@ import (
 	"runtime"
 )
 
-func CollectMetrics() (map[string]float64, map[string]int64) {
+func CollectMetrics(counterMetrics map[string]int64, gaugeMetrics map[string]float64) (map[string]int64, map[string]float64) {
 	pollCount++
 
 	var ms runtime.MemStats
 	runtime.ReadMemStats(&ms)
-
-	counterMetrics := make(map[string]int64)
-	gaugeMetrics := make(map[string]float64)
 
 	counterMetrics["PollCount"] = pollCount
 	gaugeMetrics["RandomValue"] = rand.Float64()
@@ -45,5 +42,5 @@ func CollectMetrics() (map[string]float64, map[string]int64) {
 	gaugeMetrics["Sys"] = float64(ms.Sys)
 	gaugeMetrics["TotalAlloc"] = float64(ms.TotalAlloc)
 
-	return gaugeMetrics, counterMetrics
+	return counterMetrics, gaugeMetrics
 }

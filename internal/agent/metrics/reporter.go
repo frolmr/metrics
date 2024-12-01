@@ -2,36 +2,46 @@ package metrics
 
 import (
 	"fmt"
-	"net/http"
-	"strconv"
 
 	"github.com/frolmr/metrics.git/internal/common/constants"
+	"github.com/frolmr/metrics.git/internal/common/utils"
+	"github.com/go-resty/resty/v2"
 )
 
 const (
-	serverURL = "http://localhost:8080"
+	serverScheme = "http"
+	serverHost   = "localhost:8080"
 )
 
 func reportMetric(metricType, metricName, metricValue string) {
-	url := serverURL + "/update/" + metricType + "/" + metricName + "/" + metricValue
-	response, err := http.Post(url, constants.ContentType, nil)
+	client := resty.New()
+
+	resp, err := client.R().
+		SetHeader("Content-Type", constants.ContentType).
+		SetPathParams(map[string]string{
+			"serverScheme": serverScheme,
+			"serverHost":   serverHost,
+			"metricType":   metricType,
+			"metricName":   metricName,
+			"metricValue":  metricValue,
+		}).Post("{serverScheme}://{serverHost}/update/{metricType}/{metricName}/{metricValue}")
 
 	if err != nil {
 		fmt.Println("Error sending request:", err)
 		return
 	}
 
-	defer response.Body.Close()
+	fmt.Println(resp)
 }
 
-func ReportCounterMetrics(counterMetrics *map[string]int64) {
-	for key, value := range *counterMetrics {
-		reportMetric(constants.CounterType, key, strconv.FormatInt(value, 10))
+func ReportCounterMetrics(counterMetrics map[string]int64) {
+	for key, value := range counterMetrics {
+		reportMetric(constants.CounterType, key, utils.IntToString(value))
 	}
 }
 
-func ReportGaugeMetrics(gaugeMetrics *map[string]float64) {
-	for key, value := range *gaugeMetrics {
-		reportMetric(constants.GaugeType, key, strconv.FormatFloat(value, 'g', -1, 64))
+func ReportGaugeMetrics(gaugeMetrics map[string]float64) {
+	for key, value := range gaugeMetrics {
+		reportMetric(constants.GaugeType, key, utils.FloatToString(value))
 	}
 }

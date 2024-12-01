@@ -16,13 +16,15 @@ func main() {
 	counterMetrics := make(map[string]int64)
 
 	go func() {
-		gaugeMetrics, counterMetrics = metrics.CollectMetrics()
-		time.Sleep(pollInterval)
+		for {
+			counterMetrics, gaugeMetrics = metrics.CollectMetrics(counterMetrics, gaugeMetrics)
+			time.Sleep(pollInterval)
+		}
 	}()
 
 	for {
-		metrics.ReportGaugeMetrics(&gaugeMetrics)
-		metrics.ReportCounterMetrics(&counterMetrics)
+		metrics.ReportGaugeMetrics(gaugeMetrics)
+		metrics.ReportCounterMetrics(counterMetrics)
 		time.Sleep(reportInterval)
 	}
 }
