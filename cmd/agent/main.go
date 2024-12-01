@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	config.ParseFlags()
+	config.GetConfig()
 
 	gaugeMetrics := make(map[string]float64)
 	counterMetrics := make(map[string]int64)
