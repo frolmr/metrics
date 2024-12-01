@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 
+	"github.com/frolmr/metrics.git/internal/agent/config"
 	"github.com/frolmr/metrics.git/internal/server/handlers"
 	"github.com/frolmr/metrics.git/internal/server/storage"
 	"github.com/go-chi/chi/v5"
@@ -21,6 +22,8 @@ func (ms *MemStorage) AddMetric(name string, value string) {
 }
 
 func main() {
+	config.ParseFlags()
+
 	ms := storage.MemStorage{
 		CounterMetrics: make(map[string]int64),
 		GaugeMetrics:   make(map[string]float64),
@@ -41,7 +44,7 @@ func main() {
 		r.Get("/{type}/{name}", handlers.GetMetricHandler(ms))
 	})
 
-	err := http.ListenAndServe(`:8080`, r)
+	err := http.ListenAndServe(config.ServerAddress, r)
 	if err != nil {
 		panic(err)
 	}

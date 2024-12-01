@@ -1,6 +1,10 @@
 package utils
 
-import "strconv"
+import (
+	"errors"
+	"strconv"
+	"strings"
+)
 
 func IntToString(value int64) string {
 	return strconv.FormatInt(value, 10)
@@ -24,4 +28,27 @@ func StringToFloat(stringValue string) (float64, error) {
 	} else {
 		return value, nil
 	}
+}
+
+func CheckSchemeFormat(scheme string) error {
+	if scheme != "http" && scheme != "https" {
+		return errors.New("bad scheme must be http or https")
+	}
+	return nil
+}
+
+func CheckAddrFormat(addr string) error {
+	hp := strings.Split(addr, ":")
+
+	if len(hp) != 2 {
+		return errors.New("need address in a form host:port")
+	}
+
+	_, err := strconv.Atoi(hp[1])
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
