@@ -3,14 +3,10 @@ package metrics
 import (
 	"fmt"
 
+	"github.com/frolmr/metrics.git/internal/agent/config"
 	"github.com/frolmr/metrics.git/internal/common/constants"
 	"github.com/frolmr/metrics.git/internal/common/utils"
 	"github.com/go-resty/resty/v2"
-)
-
-const (
-	serverScheme = "http"
-	serverHost   = "localhost:8080"
 )
 
 func reportMetric(metricType, metricName, metricValue string) {
@@ -19,8 +15,8 @@ func reportMetric(metricType, metricName, metricValue string) {
 	resp, err := client.R().
 		SetHeader("Content-Type", constants.ContentType).
 		SetPathParams(map[string]string{
-			"serverScheme": serverScheme,
-			"serverHost":   serverHost,
+			"serverScheme": config.ServerScheme,
+			"serverHost":   config.ServerAddress,
 			"metricType":   metricType,
 			"metricName":   metricName,
 			"metricValue":  metricValue,
