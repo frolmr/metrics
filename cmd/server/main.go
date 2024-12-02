@@ -1,51 +1,30 @@
 package main
 
 import (
+	"log"
 	"net/http"
+	"os"
 
 	"github.com/frolmr/metrics.git/internal/server/config"
-	"github.com/frolmr/metrics.git/internal/server/handlers"
+	"github.com/frolmr/metrics.git/internal/server/routes"
 	"github.com/frolmr/metrics.git/internal/server/storage"
-	"github.com/go-chi/chi/v5"
 )
 
-type Metricable interface {
-	AddMetric(name string, value string)
-}
-
-type MemStorage struct {
-	metrics map[string]string
-}
-
-func (ms *MemStorage) AddMetric(name string, value string) {
-	ms.metrics[name] = value
-}
-
 func main() {
-	config.GetConfig()
+	var err error
 
-	ms := storage.MemStorage{
-		CounterMetrics: make(map[string]int64),
-		GaugeMetrics:   make(map[string]float64),
+	if err = config.GetConfig(); err != nil {
+		log.Panic(err)
+		os.Exit(1) // NOTE: не знаю на сколько это правильное/удачное решениe
 	}
 
-	r := chi.NewRouter()
+	ms := storage.NewMemStorage()
 
-	// r.Use(middleware.ContentCharset("UTF-8"))
-	// r.Use(middleware.AllowContentType("text/plain"))
+	r := routes.SetupRoutes(ms)
 
-	r.Get("/", handlers.GetMetricsHandler(ms))
-
-	r.Route("/update", func(r chi.Router) {
-		r.Post("/{type}/{name}/{value}", handlers.UpdateMetricHandler(ms))
-	})
-
-	r.Route("/value", func(r chi.Router) {
-		r.Get("/{type}/{name}", handlers.GetMetricHandler(ms))
-	})
-
-	err := http.ListenAndServe(config.ServerAddress, r)
+	err = http.ListenAndServe(config.ServerAddress, r)
 	if err != nil {
-		panic(err)
+		log.Panic(err)
+		os.Exit(1) // NOTE: не знаю на сколько это правильное/удачное решениe
 	}
 }

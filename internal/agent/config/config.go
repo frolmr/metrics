@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/frolmr/metrics.git/internal/common/utils"
+	"github.com/frolmr/metrics.git/pkg/utils"
 )
 
 var (
@@ -35,7 +35,7 @@ const (
 	defaultPollIntervalSec   = 2
 )
 
-func GetConfig() {
+func GetConfig() error {
 	var err error
 
 	if ServerScheme = os.Getenv(schemeEnvName); ServerScheme == "" {
@@ -70,13 +70,15 @@ func GetConfig() {
 	flag.Parse()
 
 	if err = utils.CheckSchemeFormat(ServerScheme); err != nil {
-		panic(err)
+		return err
 	}
 
 	if err = utils.CheckAddrFormat(ServerAddress); err != nil {
-		panic(err)
+		return err
 	}
 
 	ReportInterval = time.Duration(reportIntervalSec) * time.Second
 	PollInterval = time.Duration(pollIntervalSec) * time.Second
+
+	return nil
 }

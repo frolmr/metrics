@@ -5,42 +5,46 @@ import (
 	"runtime"
 )
 
-func CollectMetrics(counterMetrics map[string]int64, gaugeMetrics map[string]float64) (map[string]int64, map[string]float64) {
+type MetricsCollector interface {
+	CollectMetrics() (map[string]int64, map[string]float64)
+}
+
+func (mc *MetricsCollection) CollectMetrics() (map[string]int64, map[string]float64) {
 	pollCount++
 
 	var ms runtime.MemStats
 	runtime.ReadMemStats(&ms)
 
-	counterMetrics["PollCount"] = pollCount
-	gaugeMetrics["RandomValue"] = rand.Float64()
+	mc.CounterMetrics["PollCount"] = pollCount
+	mc.GaugeMetrics["RandomValue"] = rand.Float64()
 
-	gaugeMetrics["Alloc"] = float64(ms.Alloc)
-	gaugeMetrics["BuckHashSys"] = float64(ms.BuckHashSys)
-	gaugeMetrics["Frees"] = float64(ms.Frees)
-	gaugeMetrics["GCCPUFraction"] = float64(ms.GCCPUFraction)
-	gaugeMetrics["GCSys"] = float64(ms.GCSys)
-	gaugeMetrics["HeapAlloc"] = float64(ms.HeapAlloc)
-	gaugeMetrics["HeapIdle"] = float64(ms.HeapIdle)
-	gaugeMetrics["HeapInuse"] = float64(ms.HeapInuse)
-	gaugeMetrics["HeapObjects"] = float64(ms.HeapObjects)
-	gaugeMetrics["HeapReleased"] = float64(ms.HeapReleased)
-	gaugeMetrics["HeapSys"] = float64(ms.HeapSys)
-	gaugeMetrics["LastGC"] = float64(ms.LastGC)
-	gaugeMetrics["Lookups"] = float64(ms.Lookups)
-	gaugeMetrics["MCacheInuse"] = float64(ms.MCacheInuse)
-	gaugeMetrics["MCacheSys"] = float64(ms.MCacheSys)
-	gaugeMetrics["MSpanInuse"] = float64(ms.MSpanInuse)
-	gaugeMetrics["MSpanSys"] = float64(ms.MSpanSys)
-	gaugeMetrics["Mallocs"] = float64(ms.Mallocs)
-	gaugeMetrics["NextGC"] = float64(ms.NextGC)
-	gaugeMetrics["NumForcedGC"] = float64(ms.NumForcedGC)
-	gaugeMetrics["NumGC"] = float64(ms.NumGC)
-	gaugeMetrics["OtherSys"] = float64(ms.OtherSys)
-	gaugeMetrics["PauseTotalNs"] = float64(ms.PauseTotalNs)
-	gaugeMetrics["StackInuse"] = float64(ms.StackInuse)
-	gaugeMetrics["StackSys"] = float64(ms.StackSys)
-	gaugeMetrics["Sys"] = float64(ms.Sys)
-	gaugeMetrics["TotalAlloc"] = float64(ms.TotalAlloc)
+	mc.GaugeMetrics["Alloc"] = float64(ms.Alloc)
+	mc.GaugeMetrics["BuckHashSys"] = float64(ms.BuckHashSys)
+	mc.GaugeMetrics["Frees"] = float64(ms.Frees)
+	mc.GaugeMetrics["GCCPUFraction"] = float64(ms.GCCPUFraction)
+	mc.GaugeMetrics["GCSys"] = float64(ms.GCSys)
+	mc.GaugeMetrics["HeapAlloc"] = float64(ms.HeapAlloc)
+	mc.GaugeMetrics["HeapIdle"] = float64(ms.HeapIdle)
+	mc.GaugeMetrics["HeapInuse"] = float64(ms.HeapInuse)
+	mc.GaugeMetrics["HeapObjects"] = float64(ms.HeapObjects)
+	mc.GaugeMetrics["HeapReleased"] = float64(ms.HeapReleased)
+	mc.GaugeMetrics["HeapSys"] = float64(ms.HeapSys)
+	mc.GaugeMetrics["LastGC"] = float64(ms.LastGC)
+	mc.GaugeMetrics["Lookups"] = float64(ms.Lookups)
+	mc.GaugeMetrics["MCacheInuse"] = float64(ms.MCacheInuse)
+	mc.GaugeMetrics["MCacheSys"] = float64(ms.MCacheSys)
+	mc.GaugeMetrics["MSpanInuse"] = float64(ms.MSpanInuse)
+	mc.GaugeMetrics["MSpanSys"] = float64(ms.MSpanSys)
+	mc.GaugeMetrics["Mallocs"] = float64(ms.Mallocs)
+	mc.GaugeMetrics["NextGC"] = float64(ms.NextGC)
+	mc.GaugeMetrics["NumForcedGC"] = float64(ms.NumForcedGC)
+	mc.GaugeMetrics["NumGC"] = float64(ms.NumGC)
+	mc.GaugeMetrics["OtherSys"] = float64(ms.OtherSys)
+	mc.GaugeMetrics["PauseTotalNs"] = float64(ms.PauseTotalNs)
+	mc.GaugeMetrics["StackInuse"] = float64(ms.StackInuse)
+	mc.GaugeMetrics["StackSys"] = float64(ms.StackSys)
+	mc.GaugeMetrics["Sys"] = float64(ms.Sys)
+	mc.GaugeMetrics["TotalAlloc"] = float64(ms.TotalAlloc)
 
-	return counterMetrics, gaugeMetrics
+	return mc.CounterMetrics, mc.GaugeMetrics
 }
