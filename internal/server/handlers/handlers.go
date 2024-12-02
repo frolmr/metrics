@@ -3,26 +3,35 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/frolmr/metrics.git/internal/common/constants"
-	"github.com/frolmr/metrics.git/internal/common/utils"
+	"github.com/frolmr/metrics.git/internal/domain"
 	"github.com/frolmr/metrics.git/internal/server/storage"
+	"github.com/frolmr/metrics.git/pkg/utils"
 	"github.com/go-chi/chi/v5"
 )
 
-func UpdateMetricHandler(repo storage.Repository) http.HandlerFunc {
-	return func(res http.ResponseWriter, req *http.Request) {
-		res.Header().Set("content-type", constants.ContentType)
+type RequestHandler struct {
+	repo storage.Repository
+}
 
-		// Пришлось вернуть, т.к. в автотестах проверка обязательная, а middlware
-		// требует обязательно дополнять ContentCharset, который в автотестах не передается
-		// if req.Header.Get("content-type") != "text/plain" {
-		// 	res.WriteHeader(http.StatusUnsupportedMediaType)
-		// 	return
-		// }
+func NewRequestHandler(repo storage.Repository) *RequestHandler {
+	return &RequestHandler{
+		repo: repo,
+	}
+}
+
+type MetricsRequester interface {
+	UpdateMetric() http.HandlerFunc
+	GetMetric() http.HandlerFunc
+	GetMetrics() http.HandlerFunc
+}
+
+func (rh *RequestHandler) UpdateMetric() http.HandlerFunc {
+	return func(res http.ResponseWriter, req *http.Request) {
+		res.Header().Set("content-type", domain.ContentType)
 
 		metricType := chi.URLParam(req, "type")
 
-		if metricType != constants.GaugeType && metricType != constants.CounterType {
+		if metricType != domain.GaugeType && metricType != domain.CounterType {
 			http.Error(res, "Wrong metric type", http.StatusBadRequest)
 			return
 		}
@@ -30,22 +39,22 @@ func UpdateMetricHandler(repo storage.Repository) http.HandlerFunc {
 		metricName := chi.URLParam(req, "name")
 		metricValue := chi.URLParam(req, "value")
 
-		if metricType == constants.GaugeType {
+		if metricType == domain.GaugeType {
 			value, err := utils.StringToFloat(metricValue)
 			if err != nil {
 				http.Error(res, "Wrong metric value", http.StatusBadRequest)
 				return
 			}
-			repo.UpdateGaugeMetric(metricName, value)
+			rh.repo.UpdateGaugeMetric(metricName, value)
 		}
 
-		if metricType == constants.CounterType {
+		if metricType == domain.CounterType {
 			value, err := utils.StringToInt(metricValue)
 			if err != nil {
 				http.Error(res, "Wrong metric value", http.StatusBadRequest)
 				return
 			}
-			repo.UpdateCounterMetric(metricName, value)
+			rh.repo.UpdateCounterMetric(metricName, value)
 		}
 
 		res.WriteHeader(http.StatusOK)
@@ -53,23 +62,23 @@ func UpdateMetricHandler(repo storage.Repository) http.HandlerFunc {
 	}
 }
 
-func GetMetricHandler(repo storage.Repository) http.HandlerFunc {
+func (rh *RequestHandler) GetMetric() http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
-		res.Header().Set("content-type", constants.ContentType)
+		res.Header().Set("content-type", domain.ContentType)
 
 		metricType := chi.URLParam(req, "type")
 		metricName := chi.URLParam(req, "name")
 
 		switch metricType {
-		case constants.CounterType:
-			if value, err := repo.GetCounterMetric(metricName); err != nil {
+		case domain.CounterType:
+			if value, err := rh.repo.GetCounterMetric(metricName); err != nil {
 				http.Error(res, "Metric Not Found", http.StatusNotFound)
 			} else {
 				res.WriteHeader(http.StatusOK)
 				res.Write([]byte(utils.IntToString(value)))
 			}
-		case constants.GaugeType:
-			if value, err := repo.GetGaugeMetric(metricName); err != nil {
+		case domain.GaugeType:
+			if value, err := rh.repo.GetGaugeMetric(metricName); err != nil {
 				http.Error(res, "Metric Not Found", http.StatusNotFound)
 			} else {
 				res.WriteHeader(http.StatusOK)
@@ -81,15 +90,15 @@ func GetMetricHandler(repo storage.Repository) http.HandlerFunc {
 	}
 }
 
-func GetMetricsHandler(repo storage.Repository) http.HandlerFunc {
+func (rh *RequestHandler) GetMetrics() http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
-		res.Header().Set("content-type", constants.ContentType)
+		res.Header().Set("content-type", domain.ContentType)
 
-		for name, value := range repo.GetCounterMetrics() {
+		for name, value := range rh.repo.GetCounterMetrics() {
 			res.Write([]byte(name + " " + utils.IntToString(value) + "\n"))
 		}
 
-		for name, value := range repo.GetGaugeMetrics() {
+		for name, value := range rh.repo.GetGaugeMetrics() {
 			res.Write([]byte(name + " " + utils.FloatToString(value) + "\n"))
 		}
 	}

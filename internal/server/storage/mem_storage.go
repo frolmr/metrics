@@ -7,6 +7,13 @@ type MemStorage struct {
 	GaugeMetrics   map[string]float64
 }
 
+func NewMemStorage() *MemStorage {
+	return &MemStorage{
+		CounterMetrics: make(map[string]int64),
+		GaugeMetrics:   make(map[string]float64),
+	}
+}
+
 func (ms MemStorage) UpdateCounterMetric(name string, value int64) {
 	ms.CounterMetrics[name] += value
 }

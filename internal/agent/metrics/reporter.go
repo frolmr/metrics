@@ -4,16 +4,19 @@ import (
 	"fmt"
 
 	"github.com/frolmr/metrics.git/internal/agent/config"
-	"github.com/frolmr/metrics.git/internal/common/constants"
-	"github.com/frolmr/metrics.git/internal/common/utils"
+	"github.com/frolmr/metrics.git/internal/domain"
+	"github.com/frolmr/metrics.git/pkg/utils"
 	"github.com/go-resty/resty/v2"
 )
 
-func reportMetric(metricType, metricName, metricValue string) {
-	client := resty.New()
+type MetricsReporter interface {
+	ReportCounterMetric(client *resty.Client)
+	ReportGaugeMetric(client *resty.Client)
+}
 
+func (mc *MetricsCollection) reportMetric(metricType, metricName, metricValue string, client *resty.Client) {
 	resp, err := client.R().
-		SetHeader("Content-Type", constants.ContentType).
+		SetHeader("Content-Type", domain.ContentType).
 		SetPathParams(map[string]string{
 			"serverScheme": config.ServerScheme,
 			"serverHost":   config.ServerAddress,
@@ -30,14 +33,14 @@ func reportMetric(metricType, metricName, metricValue string) {
 	fmt.Println(resp)
 }
 
-func ReportCounterMetrics(counterMetrics map[string]int64) {
-	for key, value := range counterMetrics {
-		reportMetric(constants.CounterType, key, utils.IntToString(value))
+func (mc *MetricsCollection) ReportCounterMetrics(client *resty.Client) {
+	for key, value := range mc.CounterMetrics {
+		mc.reportMetric(domain.CounterType, key, utils.IntToString(value), client)
 	}
 }
 
-func ReportGaugeMetrics(gaugeMetrics map[string]float64) {
-	for key, value := range gaugeMetrics {
-		reportMetric(constants.GaugeType, key, utils.FloatToString(value))
+func (mc *MetricsCollection) ReportGaugeMetrics(client *resty.Client) {
+	for key, value := range mc.GaugeMetrics {
+		mc.reportMetric(domain.GaugeType, key, utils.FloatToString(value), client)
 	}
 }

@@ -32,14 +32,15 @@ func testRequest(t *testing.T, ts *httptest.Server, method,
 	return string(respBody), resp.StatusCode
 }
 
-func TestMetricsUpdateHandler(t *testing.T) {
+func TestMetricsUpdate(t *testing.T) {
 	ms := storage.MemStorage{
 		CounterMetrics: make(map[string]int64),
 		GaugeMetrics:   make(map[string]float64),
 	}
+	rh := NewRequestHandler(ms)
 
 	r := chi.NewRouter()
-	r.Post("/update/{type}/{name}/{value}", UpdateMetricHandler(ms))
+	r.Post("/update/{type}/{name}/{value}", rh.UpdateMetric())
 
 	ts := httptest.NewServer(r)
 	defer ts.Close()
@@ -72,15 +73,6 @@ func TestMetricsUpdateHandler(t *testing.T) {
 				statusCode: http.StatusOK,
 			},
 		},
-		// {
-		// 	name:        "fail content-type request",
-		// 	path:        "/update/counter/test/25",
-		// 	method:      http.MethodPost,
-		// 	contentType: "application/json",
-		// 	want: want{
-		// 		statusCode: http.StatusUnsupportedMediaType,
-		// 	},
-		// },
 		{
 			name:        "fail wrong method request",
 			path:        "/update/counter/test/25",
@@ -130,9 +122,10 @@ func TestGetMetricHandler(t *testing.T) {
 		CounterMetrics: map[string]int64{"cTest1": 200, "cTest2": 128},
 		GaugeMetrics:   map[string]float64{"gTest1": 2.12, "gTest2": 0.54},
 	}
+	rh := NewRequestHandler(ms)
 
 	r := chi.NewRouter()
-	r.Get("/value/{type}/{name}", GetMetricHandler(ms))
+	r.Get("/value/{type}/{name}", rh.GetMetric())
 
 	ts := httptest.NewServer(r)
 	defer ts.Close()
@@ -222,11 +215,12 @@ func TestGetMetricsHandler(t *testing.T) {
 		CounterMetrics: map[string]int64{"cTest1": 200, "cTest2": 128},
 		GaugeMetrics:   map[string]float64{"gTest1": 2.12, "gTest2": 0.54},
 	}
+	rh := NewRequestHandler(ms)
 
 	r := chi.NewRouter()
 	r.Use(middleware.ContentCharset("UTF-8"))
 	r.Use(middleware.AllowContentType("text/plain"))
-	r.Get("/", GetMetricsHandler(ms))
+	r.Get("/", rh.GetMetrics())
 
 	ts := httptest.NewServer(r)
 	defer ts.Close()
