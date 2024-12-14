@@ -1,6 +1,8 @@
 package storage
 
-import "errors"
+import (
+	"errors"
+)
 
 type MemStorage struct {
 	CounterMetrics map[string]int64

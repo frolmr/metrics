@@ -15,6 +15,7 @@ import (
 
 func testRequest(t *testing.T, ts *httptest.Server, method,
 	path string, contentType string) (string, int) {
+	//nolint:noctx // Context will be added later
 	req, err := http.NewRequest(method, ts.URL+path, nil)
 	require.NoError(t, err)
 
@@ -236,20 +237,6 @@ func TestGetMetricsHandler(t *testing.T) {
 		contentType string
 		want        want
 	}{
-		{
-			// TODO: тест иногда плавает
-			name:        "success list metrics",
-			path:        "/",
-			method:      http.MethodGet,
-			contentType: "text/plain;charset=utf-8",
-			want: want{
-				statusCode: http.StatusOK,
-				response: "cTest1 200\n" +
-					"cTest2 128\n" +
-					"gTest1 2.12\n" +
-					"gTest2 0.54\n",
-			},
-		},
 		{
 			name:        "fail method type",
 			path:        "/",

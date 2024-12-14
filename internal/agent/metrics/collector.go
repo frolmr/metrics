@@ -1,7 +1,10 @@
 package metrics
 
 import (
-	"math/rand"
+	"crypto/rand"
+	"errors"
+	"math"
+	"math/big"
 	"runtime"
 )
 
@@ -9,14 +12,14 @@ type MetricsCollector interface {
 	CollectMetrics() (map[string]int64, map[string]float64)
 }
 
-func (mc *MetricsCollection) CollectMetrics() (map[string]int64, map[string]float64) {
+func (mc *MetricsCollection) CollectMetrics() (counterMetrics map[string]int64, gaugeMetrics map[string]float64) {
 	pollCount++
 
 	var ms runtime.MemStats
 	runtime.ReadMemStats(&ms)
 
 	mc.CounterMetrics["PollCount"] = pollCount
-	mc.GaugeMetrics["RandomValue"] = rand.Float64()
+	mc.GaugeMetrics["RandomValue"], _ = randomFloat64()
 
 	mc.GaugeMetrics["Alloc"] = float64(ms.Alloc)
 	mc.GaugeMetrics["BuckHashSys"] = float64(ms.BuckHashSys)
@@ -47,4 +50,14 @@ func (mc *MetricsCollection) CollectMetrics() (map[string]int64, map[string]floa
 	mc.GaugeMetrics["TotalAlloc"] = float64(ms.TotalAlloc)
 
 	return mc.CounterMetrics, mc.GaugeMetrics
+}
+
+func randomFloat64() (float64, error) {
+	f, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt64))
+	if err != nil {
+		return 0, errors.New("unable to generate random Float64 value")
+	}
+	randFloat, _ := f.Float64()
+
+	return randFloat, nil
 }

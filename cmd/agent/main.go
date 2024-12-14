@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"os"
 	"time"
 
 	"github.com/frolmr/metrics.git/internal/agent/config"
@@ -13,22 +12,21 @@ import (
 func main() {
 	if err := config.GetConfig(); err != nil {
 		log.Panic(err)
-		os.Exit(1) // NOTE: не знаю на сколько это правильное/удачное решение
 	}
 
-	metrics := metrics.NewMetricsCollection()
 	client := resty.New()
+	mtrcs := metrics.NewMetricsCollection(client)
 
 	go func() {
 		for {
-			metrics.CollectMetrics()
+			mtrcs.CollectMetrics()
 			time.Sleep(config.PollInterval)
 		}
 	}()
 
 	for {
-		metrics.ReportGaugeMetrics(client)
-		metrics.ReportCounterMetrics(client)
+		mtrcs.ReportGaugeMetrics()
+		mtrcs.ReportCounterMetrics()
 		time.Sleep(config.ReportInterval)
 	}
 }
