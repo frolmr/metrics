@@ -16,19 +16,19 @@ func main() {
 		os.Exit(1) // NOTE: не знаю на сколько это правильное/удачное решение
 	}
 
-	metrics := metrics.NewMetricsCollection()
+	mtrcs := metrics.NewMetricsCollection()
 	client := resty.New()
 
 	go func() {
 		for {
-			metrics.CollectMetrics()
+			mtrcs.CollectMetrics()
 			time.Sleep(config.PollInterval)
 		}
 	}()
 
 	for {
-		metrics.ReportGaugeMetrics(client)
-		metrics.ReportCounterMetrics(client)
+		mtrcs.ReportGaugeMetrics(client)
+		mtrcs.ReportCounterMetrics(client)
 		time.Sleep(config.ReportInterval)
 	}
 }

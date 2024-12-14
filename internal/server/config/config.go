@@ -21,8 +21,6 @@ const (
 )
 
 func GetConfig() error {
-	var err error
-
 	if ServerScheme = os.Getenv(schemeEnvName); ServerScheme == "" {
 		ServerScheme = defaultScheme
 	}
@@ -36,11 +34,11 @@ func GetConfig() error {
 
 	flag.Parse()
 
-	if err = utils.CheckSchemeFormat(ServerScheme); err != nil {
+	if err := utils.CheckSchemeFormat(ServerScheme); err != nil {
 		return err
 	}
 
-	if err = utils.CheckAddrFormat(ServerAddress); err != nil {
+	if err := utils.CheckAddrFormat(ServerAddress); err != nil {
 		return err
 	}
 

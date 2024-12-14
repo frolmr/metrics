@@ -1,7 +1,9 @@
 package metrics
 
 import (
-	"math/rand"
+	"crypto/rand"
+	"encoding/binary"
+	"log"
 	"runtime"
 )
 
@@ -9,14 +11,14 @@ type MetricsCollector interface {
 	CollectMetrics() (map[string]int64, map[string]float64)
 }
 
-func (mc *MetricsCollection) CollectMetrics() (map[string]int64, map[string]float64) {
+func (mc *MetricsCollection) CollectMetrics() (counterMetrics map[string]int64, gaugeMetrics map[string]float64) {
 	pollCount++
 
 	var ms runtime.MemStats
 	runtime.ReadMemStats(&ms)
 
 	mc.CounterMetrics["PollCount"] = pollCount
-	mc.GaugeMetrics["RandomValue"] = rand.Float64()
+	mc.GaugeMetrics["RandomValue"] = randomFloat64()
 
 	mc.GaugeMetrics["Alloc"] = float64(ms.Alloc)
 	mc.GaugeMetrics["BuckHashSys"] = float64(ms.BuckHashSys)
@@ -47,4 +49,17 @@ func (mc *MetricsCollection) CollectMetrics() (map[string]int64, map[string]floa
 	mc.GaugeMetrics["TotalAlloc"] = float64(ms.TotalAlloc)
 
 	return mc.CounterMetrics, mc.GaugeMetrics
+}
+
+func randomFloat64() float64 {
+	var buf [8]byte
+	_, err := rand.Read(buf[:])
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var f float64
+	binary.LittleEndian.PutUint64(buf[:], uint64(f))
+
+	return f
 }
