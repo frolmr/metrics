@@ -4,5 +4,9 @@ const (
 	GaugeType   = "gauge"
 	CounterType = "counter"
 
-	ContentType = "text/plain"
+	TextContentType = "text/plain"
+	HTMLContentType = "text/html"
+	JSONContentType = "application/json"
+
+	CompressFormat = "gzip"
 )
