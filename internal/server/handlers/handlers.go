@@ -58,7 +58,7 @@ func (rh *RequestHandler) UpdateMetric() http.HandlerFunc {
 		}
 
 		res.WriteHeader(http.StatusOK)
-		res.Write([]byte("Metric: " + metricName + " value: " + metricValue + " has added"))
+		_, _ = res.Write([]byte("Metric: " + metricName + " value: " + metricValue + " has added"))
 	}
 }
 
@@ -75,14 +75,14 @@ func (rh *RequestHandler) GetMetric() http.HandlerFunc {
 				http.Error(res, "Metric Not Found", http.StatusNotFound)
 			} else {
 				res.WriteHeader(http.StatusOK)
-				res.Write([]byte(utils.IntToString(value)))
+				_, _ = res.Write([]byte(utils.IntToString(value)))
 			}
 		case domain.GaugeType:
 			if value, err := rh.repo.GetGaugeMetric(metricName); err != nil {
 				http.Error(res, "Metric Not Found", http.StatusNotFound)
 			} else {
 				res.WriteHeader(http.StatusOK)
-				res.Write([]byte(utils.FloatToString(value)))
+				_, _ = res.Write([]byte(utils.FloatToString(value)))
 			}
 		default:
 			http.Error(res, "Wrong metric type", http.StatusBadRequest)
@@ -95,11 +95,11 @@ func (rh *RequestHandler) GetMetrics() http.HandlerFunc {
 		res.Header().Set("content-type", domain.ContentType)
 
 		for name, value := range rh.repo.GetCounterMetrics() {
-			res.Write([]byte(name + " " + utils.IntToString(value) + "\n"))
+			_, _ = res.Write([]byte(name + " " + utils.IntToString(value) + "\n"))
 		}
 
 		for name, value := range rh.repo.GetGaugeMetrics() {
-			res.Write([]byte(name + " " + utils.FloatToString(value) + "\n"))
+			_, _ = res.Write([]byte(name + " " + utils.FloatToString(value) + "\n"))
 		}
 	}
 }

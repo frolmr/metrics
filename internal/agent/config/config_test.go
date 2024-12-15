@@ -57,7 +57,7 @@ func TestParseFlags(t *testing.T) {
 		os.Args = append([]string{"cmd"}, test.args...)
 
 		flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
-		GetConfig()
+		_ = GetConfig()
 
 		assert.Equal(t, test.want.host, ServerAddress)
 		assert.Equal(t, test.want.reportInterval, ReportInterval)
@@ -174,8 +174,7 @@ func TestEnvVariables(t *testing.T) {
 		os.Args = append([]string{"cmd"}, test.args...)
 
 		flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
-		GetConfig()
-		// os.Clearenv()
+		_ = GetConfig()
 		os.Unsetenv(test.envName)
 
 		assert.Equal(t, test.want.host, ServerAddress)

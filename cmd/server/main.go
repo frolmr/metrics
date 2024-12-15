@@ -3,9 +3,9 @@ package main
 import (
 	"log"
 	"net/http"
-	"os"
 
 	"github.com/frolmr/metrics.git/internal/server/config"
+	"github.com/frolmr/metrics.git/internal/server/logger"
 	"github.com/frolmr/metrics.git/internal/server/routes"
 	"github.com/frolmr/metrics.git/internal/server/storage"
 )
@@ -15,16 +15,18 @@ func main() {
 
 	if err = config.GetConfig(); err != nil {
 		log.Panic(err)
-		os.Exit(1) // NOTE: не знаю на сколько это правильное/удачное решениe
+	}
+
+	logger, err := logger.NewLogger()
+	if err != nil {
+		log.Panic(err)
 	}
 
 	ms := storage.NewMemStorage()
+	router := routes.NewRouter(ms, *logger)
 
-	r := routes.SetupRoutes(ms)
-
-	err = http.ListenAndServe(config.ServerAddress, r)
+	err = http.ListenAndServe(config.ServerAddress, router.SetupRoutes())
 	if err != nil {
 		log.Panic(err)
-		os.Exit(1) // NOTE: не знаю на сколько это правильное/удачное решениe
 	}
 }
