@@ -5,5 +5,8 @@ const (
 	CounterType = "counter"
 
 	TextContentType = "text/plain"
+	HTMLContentType = "text/html"
 	JSONContentType = "application/json"
+
+	CompressFormat = "gzip"
 )

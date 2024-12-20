@@ -4,7 +4,7 @@ import (
 	"flag"
 	"os"
 
-	"github.com/frolmr/metrics.git/pkg/utils"
+	"github.com/frolmr/metrics.git/pkg/formatter"
 )
 
 var (
@@ -34,11 +34,11 @@ func GetConfig() error {
 
 	flag.Parse()
 
-	if err := utils.CheckSchemeFormat(ServerScheme); err != nil {
+	if err := formatter.CheckSchemeFormat(ServerScheme); err != nil {
 		return err
 	}
 
-	if err := utils.CheckAddrFormat(ServerAddress); err != nil {
+	if err := formatter.CheckAddrFormat(ServerAddress); err != nil {
 		return err
 	}
 

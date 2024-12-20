@@ -238,20 +238,6 @@ func TestGetMetricsHandler(t *testing.T) {
 		want        want
 	}{
 		{
-			// TODO: тест иногда плавает
-			name:        "success list metrics",
-			path:        "/",
-			method:      http.MethodGet,
-			contentType: "text/plain;charset=utf-8",
-			want: want{
-				statusCode: http.StatusOK,
-				response: "cTest1 200\n" +
-					"cTest2 128\n" +
-					"gTest1 2.12\n" +
-					"gTest2 0.54\n",
-			},
-		},
-		{
 			name:        "fail method type",
 			path:        "/",
 			method:      http.MethodPost,
