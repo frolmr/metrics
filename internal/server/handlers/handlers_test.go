@@ -15,6 +15,7 @@ import (
 
 func testRequest(t *testing.T, ts *httptest.Server, method,
 	path string, contentType string) (string, int) {
+	//nolint:noctx // Context will be added later
 	req, err := http.NewRequest(method, ts.URL+path, nil)
 	require.NoError(t, err)
 

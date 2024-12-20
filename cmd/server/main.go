@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/frolmr/metrics.git/internal/server/config"
 	"github.com/frolmr/metrics.git/internal/server/logger"
@@ -17,15 +18,21 @@ func main() {
 		log.Panic(err)
 	}
 
-	logger, err := logger.NewLogger()
+	lgr, err := logger.NewLogger()
 	if err != nil {
 		log.Panic(err)
 	}
 
 	ms := storage.NewMemStorage()
-	router := routes.NewRouter(ms, *logger)
+	router := routes.NewRouter(ms, *lgr)
 
-	err = http.ListenAndServe(config.ServerAddress, router.SetupRoutes())
+	server := &http.Server{
+		Addr:              config.ServerAddress,
+		ReadHeaderTimeout: 3 * time.Second,
+		Handler:           router.SetupRoutes(),
+	}
+
+	err = server.ListenAndServe()
 	if err != nil {
 		log.Panic(err)
 	}

@@ -12,10 +12,10 @@ type Router struct {
 	logger logger.Logger
 }
 
-func NewRouter(repo storage.Repository, logger logger.Logger) *Router {
+func NewRouter(repo storage.Repository, lgr logger.Logger) *Router {
 	return &Router{
 		repo:   repo,
-		logger: logger,
+		logger: lgr,
 	}
 }
 
@@ -26,10 +26,12 @@ func (router *Router) SetupRoutes() chi.Router {
 	r.Get("/", router.logger.WithLogging(rh.GetMetrics()))
 
 	r.Route("/update", func(r chi.Router) {
+		r.Post("/", rh.UpdateMetricJSON())
 		r.Post("/{type}/{name}/{value}", router.logger.WithLogging(rh.UpdateMetric()))
 	})
 
 	r.Route("/value", func(r chi.Router) {
+		r.Post("/", rh.GetMetricJSON())
 		r.Get("/{type}/{name}", router.logger.WithLogging(rh.GetMetric()))
 	})
 

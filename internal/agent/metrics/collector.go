@@ -2,8 +2,9 @@ package metrics
 
 import (
 	"crypto/rand"
-	"encoding/binary"
-	"log"
+	"errors"
+	"math"
+	"math/big"
 	"runtime"
 )
 
@@ -18,7 +19,7 @@ func (mc *MetricsCollection) CollectMetrics() (counterMetrics map[string]int64, 
 	runtime.ReadMemStats(&ms)
 
 	mc.CounterMetrics["PollCount"] = pollCount
-	mc.GaugeMetrics["RandomValue"] = randomFloat64()
+	mc.GaugeMetrics["RandomValue"], _ = randomFloat64()
 
 	mc.GaugeMetrics["Alloc"] = float64(ms.Alloc)
 	mc.GaugeMetrics["BuckHashSys"] = float64(ms.BuckHashSys)
@@ -51,15 +52,12 @@ func (mc *MetricsCollection) CollectMetrics() (counterMetrics map[string]int64, 
 	return mc.CounterMetrics, mc.GaugeMetrics
 }
 
-func randomFloat64() float64 {
-	var buf [8]byte
-	_, err := rand.Read(buf[:])
+func randomFloat64() (float64, error) {
+	f, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt64))
 	if err != nil {
-		log.Fatal(err)
+		return 0, errors.New("unable to generate random Float64 value")
 	}
+	randFloat, _ := f.Float64()
 
-	var f float64
-	binary.LittleEndian.PutUint64(buf[:], uint64(f))
-
-	return f
+	return randFloat, nil
 }

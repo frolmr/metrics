@@ -21,13 +21,15 @@ func NewRequestHandler(repo storage.Repository) *RequestHandler {
 
 type MetricsRequester interface {
 	UpdateMetric() http.HandlerFunc
+	UpdateMetricJSON() http.HandlerFunc
 	GetMetric() http.HandlerFunc
+	GetMetricJSON() http.HandlerFunc
 	GetMetrics() http.HandlerFunc
 }
 
 func (rh *RequestHandler) UpdateMetric() http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
-		res.Header().Set("content-type", domain.ContentType)
+		res.Header().Set("content-type", domain.TextContentType)
 
 		metricType := chi.URLParam(req, "type")
 
@@ -39,22 +41,9 @@ func (rh *RequestHandler) UpdateMetric() http.HandlerFunc {
 		metricName := chi.URLParam(req, "name")
 		metricValue := chi.URLParam(req, "value")
 
-		if metricType == domain.GaugeType {
-			value, err := utils.StringToFloat(metricValue)
-			if err != nil {
-				http.Error(res, "Wrong metric value", http.StatusBadRequest)
-				return
-			}
-			rh.repo.UpdateGaugeMetric(metricName, value)
-		}
-
-		if metricType == domain.CounterType {
-			value, err := utils.StringToInt(metricValue)
-			if err != nil {
-				http.Error(res, "Wrong metric value", http.StatusBadRequest)
-				return
-			}
-			rh.repo.UpdateCounterMetric(metricName, value)
+		if err := rh.updateMetric(metricName, metricType, metricValue); err != nil {
+			http.Error(res, "Wrong metric value", http.StatusBadRequest)
+			return
 		}
 
 		res.WriteHeader(http.StatusOK)
@@ -64,7 +53,7 @@ func (rh *RequestHandler) UpdateMetric() http.HandlerFunc {
 
 func (rh *RequestHandler) GetMetric() http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
-		res.Header().Set("content-type", domain.ContentType)
+		res.Header().Set("content-type", domain.TextContentType)
 
 		metricType := chi.URLParam(req, "type")
 		metricName := chi.URLParam(req, "name")
@@ -92,7 +81,7 @@ func (rh *RequestHandler) GetMetric() http.HandlerFunc {
 
 func (rh *RequestHandler) GetMetrics() http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
-		res.Header().Set("content-type", domain.ContentType)
+		res.Header().Set("content-type", domain.TextContentType)
 
 		for name, value := range rh.repo.GetCounterMetrics() {
 			_, _ = res.Write([]byte(name + " " + utils.IntToString(value) + "\n"))
@@ -102,4 +91,23 @@ func (rh *RequestHandler) GetMetrics() http.HandlerFunc {
 			_, _ = res.Write([]byte(name + " " + utils.FloatToString(value) + "\n"))
 		}
 	}
+}
+
+func (rh *RequestHandler) updateMetric(metricName, metricType, metricValue string) error {
+	if metricType == domain.GaugeType {
+		value, err := utils.StringToFloat(metricValue)
+		if err != nil {
+			return err
+		}
+		rh.repo.UpdateGaugeMetric(metricName, value)
+	}
+
+	if metricType == domain.CounterType {
+		value, err := utils.StringToInt(metricValue)
+		if err != nil {
+			return err
+		}
+		rh.repo.UpdateCounterMetric(metricName, value)
+	}
+	return nil
 }
