@@ -2,76 +2,56 @@ package logger
 
 import (
 	"net/http"
-	"time"
 
 	"go.uber.org/zap"
 )
 
-type Logger struct {
-	sugaredLogger zap.SugaredLogger
-}
+var Log *zap.Logger = zap.NewNop()
 
-func NewLogger() (*Logger, error) {
-	l, err := zap.NewDevelopment()
-
+// Initialize инициализирует синглтон логера с необходимым уровнем логирования.
+func Initialize(level string) error {
+	// преобразуем текстовый уровень логирования в zap.AtomicLevel
+	lvl, err := zap.ParseAtomicLevel(level)
 	if err != nil {
-		return nil, err
+		return err
 	}
-
-	return &Logger{
-		sugaredLogger: *l.Sugar(),
-	}, nil
+	// создаём новую конфигурацию логера
+	cfg := zap.NewProductionConfig()
+	// устанавливаем уровень
+	cfg.Level = lvl
+	// создаём логер на основе конфигурации
+	zl, err := cfg.Build()
+	if err != nil {
+		return err
+	}
+	// устанавливаем синглтон
+	Log = zl
+	return nil
 }
 
 type (
 	// берём структуру для хранения сведений об ответе
-	responseData struct {
-		status int
-		size   int
+	ResponseData struct {
+		Status int
+		Size   int
 	}
 
 	// добавляем реализацию http.ResponseWriter
-	loggingResponseWriter struct {
+	LoggingResponseWriter struct {
 		http.ResponseWriter // встраиваем оригинальный http.ResponseWriter
-		responseData        *responseData
+		ResponseData        *ResponseData
 	}
 )
 
-func (r *loggingResponseWriter) Write(b []byte) (int, error) {
+func (r *LoggingResponseWriter) Write(b []byte) (int, error) {
 	// записываем ответ, используя оригинальный http.ResponseWriter
 	size, err := r.ResponseWriter.Write(b)
-	r.responseData.size += size // захватываем размер
+	r.ResponseData.Size += size // захватываем размер
 	return size, err
 }
 
-func (r *loggingResponseWriter) WriteHeader(statusCode int) {
+func (r *LoggingResponseWriter) WriteHeader(statusCode int) {
 	// записываем код статуса, используя оригинальный http.ResponseWriter
 	r.ResponseWriter.WriteHeader(statusCode)
-	r.responseData.status = statusCode // захватываем код статуса
-}
-
-func (logger *Logger) WithLogging(h http.Handler) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-
-		responseData := &responseData{
-			status: 0,
-			size:   0,
-		}
-		lw := loggingResponseWriter{
-			ResponseWriter: w, // встраиваем оригинальный http.ResponseWriter
-			responseData:   responseData,
-		}
-		h.ServeHTTP(&lw, r) // внедряем реализацию http.ResponseWriter
-
-		duration := time.Since(start)
-
-		logger.sugaredLogger.Infoln(
-			"uri", r.RequestURI,
-			"method", r.Method,
-			"status", responseData.status, // получаем перехваченный код статуса ответа
-			"duration", duration,
-			"size", responseData.size, // получаем перехваченный размер ответа
-		)
-	}
+	r.ResponseData.Status = statusCode // захватываем код статуса
 }

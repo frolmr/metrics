@@ -18,13 +18,12 @@ func main() {
 		log.Panic(err)
 	}
 
-	lgr, err := logger.NewLogger()
-	if err != nil {
+	if err := logger.Initialize("Info"); err != nil {
 		log.Panic(err)
 	}
 
 	ms := storage.NewMemStorage()
-	router := routes.NewRouter(ms, *lgr)
+	router := routes.NewRouter(ms)
 
 	server := &http.Server{
 		Addr:              config.ServerAddress,
@@ -32,8 +31,7 @@ func main() {
 		Handler:           router.SetupRoutes(),
 	}
 
-	err = server.ListenAndServe()
-	if err != nil {
+	if err := server.ListenAndServe(); err != nil {
 		log.Panic(err)
 	}
 }
