@@ -9,84 +9,87 @@ import (
 	"github.com/frolmr/metrics.git/pkg/formatter"
 )
 
-var (
-	ServerScheme  string
-	ServerAddress string
+const (
+	schemeEnvName      = "SCHEME"
+	addressEnvName     = "ADDRESS"
+	storeIntervalEnv   = "STORE_INTERVAL"
+	fileStoragePathEnv = "FILE_STORAGE_PATH"
+	restoreEnv         = "RESTORE"
+	databaseDsnEnv     = "DATABASE_DSN"
 
-	storeIntervalString string
-	storeIntervalSec    int
-	restoreString       string
+	defaultScheme          = "http"
+	defaultAddress         = "localhost:8080"
+	defaultStoreInterval   = 300
+	defaultFileStoragePath = "data_snapshot"
+	defaultRestore         = false
+)
+
+type Config struct {
+	Scheme      string
+	HTTPAddress string
+	DatabaseDSN string
 
 	StoreInterval   time.Duration
 	FileStoragePath string
 	Restore         bool
-)
+}
 
-const (
-	schemeEnvName  = "SCHEME"
-	addressEnvName = "ADDRESS"
-
-	storeIntervalEnv   = "STORE_INTERVAL"
-	fileStoragePathEnv = "FILE_STORAGE_PATH"
-	restoreEnv         = "RESTORE"
-
-	defaultScheme  = "http"
-	defaultAddress = "localhost:8080"
-
-	defaultStoreIntervalString = "300"
-	defaultStoreInterval       = 300
-	defaultFileStoragePath     = "data_snapshot"
-	defaultRestoreString       = "true"
-)
-
-func GetConfig() error {
-	if ServerScheme = os.Getenv(schemeEnvName); ServerScheme == "" {
-		ServerScheme = defaultScheme
+func NewConfig() (*Config, error) {
+	serverScheme := os.Getenv(schemeEnvName)
+	if serverScheme == "" {
+		serverScheme = defaultScheme
 	}
 
-	if ServerAddress = os.Getenv(addressEnvName); ServerAddress == "" {
-		ServerAddress = defaultAddress
+	flag.StringVar(&serverScheme, "s", serverScheme, "server scheme: http or https")
+
+	if err := formatter.CheckSchemeFormat(serverScheme); err != nil {
+		return nil, err
 	}
 
-	if storeIntervalString = os.Getenv(storeIntervalEnv); storeIntervalString == "" {
-		storeIntervalString = defaultStoreIntervalString
-	}
-	var err error
-	if storeIntervalSec, err = strconv.Atoi(storeIntervalString); err != nil {
-		storeIntervalSec = 300
+	serverHTTPAddress := os.Getenv(addressEnvName)
+	if serverHTTPAddress == "" {
+		serverHTTPAddress = defaultAddress
 	}
 
-	if FileStoragePath = os.Getenv(fileStoragePathEnv); FileStoragePath == "" {
-		FileStoragePath = defaultFileStoragePath
+	flag.StringVar(&serverHTTPAddress, "a", serverHTTPAddress, "address and port of the server")
+
+	if err := formatter.CheckAddrFormat(serverHTTPAddress); err != nil {
+		return nil, err
 	}
 
-	if restoreString = os.Getenv(restoreEnv); restoreString == "" {
-		restoreString = defaultRestoreString
-	}
+	databaseDsn := os.Getenv(databaseDsnEnv)
+	flag.StringVar(&databaseDsn, "d", databaseDsn, "DB DSN")
 
-	flag.StringVar(&ServerScheme, "s", ServerScheme, "server scheme: http or https")
-	flag.StringVar(&ServerAddress, "a", ServerAddress, "address and port of the server")
-
+	storeIntervalSec, _ := strconv.Atoi(os.Getenv(storeIntervalEnv))
 	flag.IntVar(&storeIntervalSec, "i", storeIntervalSec, "snapshot data interval")
-	flag.StringVar(&FileStoragePath, "f", FileStoragePath, "snapshot file path")
+
+	if storeIntervalSec == 0 {
+		storeIntervalSec = defaultStoreInterval
+	}
+
+	fileStoragePath := os.Getenv(fileStoragePathEnv)
+	if fileStoragePath == "" {
+		fileStoragePath = defaultFileStoragePath
+	}
+
+	flag.StringVar(&fileStoragePath, "f", fileStoragePath, "snapshot file path")
+
+	restoreString := os.Getenv(restoreEnv)
 	flag.StringVar(&restoreString, "r", restoreString, "bool flag for set snapshoting")
 
 	flag.Parse()
 
-	if err := formatter.CheckSchemeFormat(ServerScheme); err != nil {
-		return err
-	}
-
-	if err := formatter.CheckAddrFormat(ServerAddress); err != nil {
-		return err
-	}
-
-	StoreInterval = time.Duration(storeIntervalSec) * time.Second
-
-	Restore = false
+	restore := defaultRestore
 	if restoreString == "true" {
-		Restore = true
+		restore = true
 	}
 
-	return nil
+	return &Config{
+		Scheme:          serverScheme,
+		HTTPAddress:     serverHTTPAddress,
+		DatabaseDSN:     databaseDsn,
+		StoreInterval:   time.Duration(storeIntervalSec) * time.Second,
+		FileStoragePath: fileStoragePath,
+		Restore:         restore,
+	}, nil
 }

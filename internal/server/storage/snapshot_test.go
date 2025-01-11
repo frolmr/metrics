@@ -26,8 +26,8 @@ func TestSnaphots(t *testing.T) {
 		reader := bufio.NewReader(file)
 		writer := bufio.NewWriter(file)
 
-		ms.UpdateCounterMetric("cm1", 7)
-		ms.UpdateGaugeMetric("gm1", 8.8)
+		_ = ms.UpdateCounterMetric("cm1", 7)
+		_ = ms.UpdateGaugeMetric("gm1", 8.8)
 		_ = ms.SaveToSnapshot(writer)
 		_ = ms.RestoreFromSnapshot(reader)
 		assert.Equal(t, ms.CounterMetrics["cm1"], int64(8))

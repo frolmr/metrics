@@ -35,9 +35,9 @@ func TestParseHostFlags(t *testing.T) {
 		os.Args = append([]string{"cmd"}, test.args...)
 
 		flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
-		_ = GetConfig()
+		config, _ := NewConfig()
 
-		assert.Equal(t, test.want.host, ServerAddress)
+		assert.Equal(t, test.want.host, config.HTTPAddress)
 	}
 }
 
@@ -67,9 +67,9 @@ func TestParseIntervalFlags(t *testing.T) {
 		os.Args = append([]string{"cmd"}, test.args...)
 
 		flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
-		_ = GetConfig()
+		config, _ := NewConfig()
 
-		assert.Equal(t, test.want.interval, StoreInterval)
+		assert.Equal(t, test.want.interval, config.StoreInterval)
 	}
 }
 
@@ -99,9 +99,9 @@ func TestParseFileFlags(t *testing.T) {
 		os.Args = append([]string{"cmd"}, test.args...)
 
 		flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
-		_ = GetConfig()
+		config, _ := NewConfig()
 
-		assert.Equal(t, test.want.file, FileStoragePath)
+		assert.Equal(t, test.want.file, config.FileStoragePath)
 	}
 }
 
@@ -114,15 +114,15 @@ func TestParseRestoreFlags(t *testing.T) {
 		want want
 	}{
 		{
-			args: []string{"-r", "false"},
+			args: []string{"-r", "true"},
 			want: want{
-				restore: false,
+				restore: true,
 			},
 		},
 		{
 			args: []string{""},
 			want: want{
-				restore: true,
+				restore: false,
 			},
 		},
 	}
@@ -131,9 +131,9 @@ func TestParseRestoreFlags(t *testing.T) {
 		os.Args = append([]string{"cmd"}, test.args...)
 
 		flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
-		_ = GetConfig()
+		config, _ := NewConfig()
 
-		assert.Equal(t, test.want.restore, Restore)
+		assert.Equal(t, test.want.restore, config.Restore)
 	}
 }
 
@@ -178,11 +178,11 @@ func TestHostEnvVariables(t *testing.T) {
 		os.Args = append([]string{"cmd"}, test.args...)
 
 		flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
-		_ = GetConfig()
+		config, _ := NewConfig()
 
 		os.Clearenv()
 
-		assert.Equal(t, test.want.host, ServerAddress)
+		assert.Equal(t, test.want.host, config.HTTPAddress)
 	}
 }
 
@@ -227,11 +227,11 @@ func TestHostIntervalVariables(t *testing.T) {
 		os.Args = append([]string{"cmd"}, test.args...)
 
 		flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
-		_ = GetConfig()
+		config, _ := NewConfig()
 
 		os.Clearenv()
 
-		assert.Equal(t, test.want.interval, StoreInterval)
+		assert.Equal(t, test.want.interval, config.StoreInterval)
 	}
 }
 
@@ -256,9 +256,9 @@ func TestHostRestoreVariables(t *testing.T) {
 		{
 			args:     []string{},
 			envName:  "RESTORE",
-			envValue: "false",
+			envValue: "true",
 			want: want{
-				restore: false,
+				restore: true,
 			},
 		},
 		{
@@ -274,7 +274,7 @@ func TestHostRestoreVariables(t *testing.T) {
 			envName:  "SOME_VAR",
 			envValue: "SOME_VAL",
 			want: want{
-				restore: true,
+				restore: false,
 			},
 		},
 	}
@@ -284,10 +284,10 @@ func TestHostRestoreVariables(t *testing.T) {
 		os.Args = append([]string{"cmd"}, test.args...)
 
 		flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
-		_ = GetConfig()
+		config, _ := NewConfig()
 
 		os.Clearenv()
 
-		assert.Equal(t, test.want.restore, Restore)
+		assert.Equal(t, test.want.restore, config.Restore)
 	}
 }

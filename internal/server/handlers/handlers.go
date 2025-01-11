@@ -20,11 +20,22 @@ func NewRequestHandler(repo storage.Repository) *RequestHandler {
 }
 
 type MetricsRequester interface {
+	Ping() http.HandlerFunc
 	UpdateMetric() http.HandlerFunc
 	UpdateMetricJSON() http.HandlerFunc
 	GetMetric() http.HandlerFunc
 	GetMetricJSON() http.HandlerFunc
 	GetMetrics() http.HandlerFunc
+}
+
+func (rh *RequestHandler) Ping() http.HandlerFunc {
+	return func(res http.ResponseWriter, req *http.Request) {
+		if err := rh.repo.Ping(); err != nil {
+			http.Error(res, "DB unavailable", http.StatusInternalServerError)
+			return
+		}
+		res.WriteHeader(http.StatusOK)
+	}
 }
 
 func (rh *RequestHandler) UpdateMetric() http.HandlerFunc {
@@ -88,13 +99,14 @@ func (rh *RequestHandler) GetMetrics() http.HandlerFunc {
 			res.Header().Set("content-type", domain.TextContentType)
 		}
 
-		for name, value := range rh.repo.GetCounterMetrics() {
-			res.WriteHeader(http.StatusOK)
+		res.WriteHeader(http.StatusOK)
+		counterMetrics, _ := rh.repo.GetCounterMetrics()
+		for name, value := range counterMetrics {
 			_, _ = res.Write([]byte(name + " " + formatter.IntToString(value) + "\n"))
 		}
 
-		for name, value := range rh.repo.GetGaugeMetrics() {
-			res.WriteHeader(http.StatusOK)
+		gaugeMetrics, _ := rh.repo.GetGaugeMetrics()
+		for name, value := range gaugeMetrics {
 			_, _ = res.Write([]byte(name + " " + formatter.FloatToString(value) + "\n"))
 		}
 	}
@@ -106,7 +118,9 @@ func (rh *RequestHandler) updateMetric(metricName, metricType, metricValue strin
 		if err != nil {
 			return err
 		}
-		rh.repo.UpdateGaugeMetric(metricName, value)
+		if err := rh.repo.UpdateGaugeMetric(metricName, value); err != nil {
+			return err
+		}
 	}
 
 	if metricType == domain.CounterType {
@@ -114,7 +128,9 @@ func (rh *RequestHandler) updateMetric(metricName, metricType, metricValue strin
 		if err != nil {
 			return err
 		}
-		rh.repo.UpdateCounterMetric(metricName, value)
+		if err := rh.repo.UpdateCounterMetric(metricName, value); err != nil {
+			return err
+		}
 	}
 	return nil
 }
