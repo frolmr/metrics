@@ -9,36 +9,37 @@ import (
 )
 
 type Controller struct {
-	repo   storage.Repository
 	logger *logger.Logger
 }
 
-func NewController(repo storage.Repository, lgr *logger.Logger) *Controller {
+func NewController(lgr *logger.Logger) *Controller {
 	return &Controller{
-		repo:   repo,
 		logger: lgr,
 	}
 }
 
-func (c *Controller) SetupHandlers() chi.Router {
+func (c *Controller) SetupHandlers(stor storage.Repository) chi.Router {
 	r := chi.NewRouter()
 
 	r.Use(middleware.Compressor)
 	r.Use(middleware.WithLog(c.logger))
 
-	rh := handlers.NewRequestHandler(c.repo)
+	rh := handlers.NewRequestHandler(stor)
 
 	r.Get("/", rh.GetMetrics())
 
-	r.Route("/update", func(r chi.Router) {
+	r.Route("/update/", func(r chi.Router) {
 		r.Post("/", rh.UpdateMetricJSON())
 		r.Post("/{type}/{name}/{value}", rh.UpdateMetric())
 	})
 
-	r.Route("/value", func(r chi.Router) {
+	r.Route("/value/", func(r chi.Router) {
 		r.Post("/", rh.GetMetricJSON())
 		r.Get("/{type}/{name}", rh.GetMetric())
 	})
+
+	r.Get("/ping", rh.Ping())
+	r.Post("/updates/", rh.BulkUpdateMetricJSON())
 
 	return r
 }

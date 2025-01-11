@@ -13,22 +13,22 @@ func TestMemStorage(t *testing.T) {
 	}
 
 	t.Run("update existing counter metric", func(t *testing.T) {
-		ms.UpdateCounterMetric("cm1", 2)
+		_ = ms.UpdateCounterMetric("cm1", 2)
 		assert.Equal(t, ms.CounterMetrics["cm1"], int64(3))
 	})
 
 	t.Run("update new counter metric", func(t *testing.T) {
-		ms.UpdateCounterMetric("cm2", 5)
+		_ = ms.UpdateCounterMetric("cm2", 5)
 		assert.Equal(t, ms.CounterMetrics["cm2"], int64(5))
 	})
 
 	t.Run("update existing gauge metric", func(t *testing.T) {
-		ms.UpdateGaugeMetric("gm1", 0.5)
+		_ = ms.UpdateGaugeMetric("gm1", 0.5)
 		assert.Equal(t, ms.GaugeMetrics["gm1"], float64(0.5))
 	})
 
 	t.Run("update new counter metric", func(t *testing.T) {
-		ms.UpdateGaugeMetric("gm2", 1.2)
+		_ = ms.UpdateGaugeMetric("gm2", 1.2)
 		assert.Equal(t, ms.GaugeMetrics["gm2"], float64(1.2))
 	})
 
@@ -43,12 +43,12 @@ func TestMemStorage(t *testing.T) {
 	})
 
 	t.Run("get all counter metrics", func(t *testing.T) {
-		vals := ms.GetCounterMetrics()
+		vals, _ := ms.GetCounterMetrics()
 		assert.EqualValues(t, ms.CounterMetrics, vals)
 	})
 
 	t.Run("get all gaugel metrics", func(t *testing.T) {
-		vals := ms.GetGaugeMetrics()
+		vals, _ := ms.GetGaugeMetrics()
 		assert.EqualValues(t, ms.GaugeMetrics, vals)
 	})
 }

@@ -40,6 +40,7 @@ func TestUpdateJSONMetricHandler(t *testing.T) {
 		CounterMetrics: make(map[string]int64),
 		GaugeMetrics:   make(map[string]float64),
 	}
+
 	rh := NewRequestHandler(ms)
 
 	r := chi.NewRouter()
@@ -114,6 +115,7 @@ func TestGetJSONMetricHandler(t *testing.T) {
 		CounterMetrics: map[string]int64{"cTest1": counterVal},
 		GaugeMetrics:   map[string]float64{"gTest1": gaugeVal},
 	}
+
 	rh := NewRequestHandler(ms)
 
 	r := chi.NewRouter()

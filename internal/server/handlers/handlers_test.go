@@ -38,6 +38,7 @@ func TestMetricsUpdate(t *testing.T) {
 		CounterMetrics: make(map[string]int64),
 		GaugeMetrics:   make(map[string]float64),
 	}
+
 	rh := NewRequestHandler(ms)
 
 	r := chi.NewRouter()
@@ -123,6 +124,7 @@ func TestGetMetricHandler(t *testing.T) {
 		CounterMetrics: map[string]int64{"cTest1": 200, "cTest2": 128},
 		GaugeMetrics:   map[string]float64{"gTest1": 2.12, "gTest2": 0.54},
 	}
+
 	rh := NewRequestHandler(ms)
 
 	r := chi.NewRouter()
@@ -253,5 +255,39 @@ func TestGetMetricsHandler(t *testing.T) {
 		body, code := testRequest(t, ts, tt.method, tt.path, tt.contentType)
 		assert.Equal(t, tt.want.statusCode, code)
 		assert.Equal(t, tt.want.response, body)
+	}
+}
+
+func TestPingHandler(t *testing.T) {
+	ms := storage.MemStorage{
+		CounterMetrics: map[string]int64{},
+		GaugeMetrics:   map[string]float64{},
+	}
+	rh := NewRequestHandler(ms)
+
+	r := chi.NewRouter()
+	r.Use(middleware.ContentCharset("UTF-8"))
+	r.Use(middleware.AllowContentType("text/plain"))
+	r.Get("/ping", rh.Ping())
+
+	ts := httptest.NewServer(r)
+	defer ts.Close()
+
+	type want struct {
+		statusCode int
+	}
+	tests := []struct {
+		want want
+	}{
+		{
+			want: want{
+				statusCode: http.StatusOK,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		_, code := testRequest(t, ts, http.MethodGet, "/ping", "text/plain;charset=utf-8")
+		assert.Equal(t, tt.want.statusCode, code)
 	}
 }
