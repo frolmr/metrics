@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/frolmr/metrics.git/internal/domain"
 	"github.com/frolmr/metrics.git/internal/server/storage"
 	"github.com/go-chi/chi/v5"
@@ -40,7 +41,13 @@ func TestUpdateJSONMetricHandler(t *testing.T) {
 		CounterMetrics: make(map[string]int64),
 		GaugeMetrics:   make(map[string]float64),
 	}
-	rh := NewRequestHandler(ms)
+
+	db, _, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+	}
+	defer db.Close()
+	rh := NewRequestHandler(ms, db)
 
 	r := chi.NewRouter()
 	r.Post("/update", rh.UpdateMetricJSON())
@@ -114,7 +121,13 @@ func TestGetJSONMetricHandler(t *testing.T) {
 		CounterMetrics: map[string]int64{"cTest1": counterVal},
 		GaugeMetrics:   map[string]float64{"gTest1": gaugeVal},
 	}
-	rh := NewRequestHandler(ms)
+
+	db, _, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+	}
+	defer db.Close()
+	rh := NewRequestHandler(ms, db)
 
 	r := chi.NewRouter()
 	r.Post("/value", rh.GetMetricJSON())

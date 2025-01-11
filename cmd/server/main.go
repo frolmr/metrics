@@ -1,9 +1,12 @@
 package main
 
 import (
+	"database/sql"
 	"log"
 	"net/http"
 	"time"
+
+	_ "github.com/jackc/pgx/v5/stdlib"
 
 	"github.com/frolmr/metrics.git/internal/server/config"
 	"github.com/frolmr/metrics.git/internal/server/controller"
@@ -23,6 +26,12 @@ func main() {
 		log.Panic("error initializing logger")
 	}
 
+	db, err := sql.Open("pgx", config.DatabaseDsn)
+	if err != nil {
+		log.Panic("could not connect to DB: ", err.Error())
+	}
+	defer db.Close()
+
 	ms := storage.NewMemStorage()
 	fs := storage.NewFileSnapshot(ms, config.FileStoragePath)
 
@@ -36,7 +45,7 @@ func main() {
 		makeSnapshots(fs)
 	}
 
-	c := controller.NewController(ms, l)
+	c := controller.NewController(ms, l, db)
 
 	server := &http.Server{
 		Addr:              config.ServerAddress,

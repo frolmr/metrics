@@ -20,6 +20,8 @@ var (
 	StoreInterval   time.Duration
 	FileStoragePath string
 	Restore         bool
+
+	DatabaseDsn string
 )
 
 const (
@@ -29,9 +31,11 @@ const (
 	storeIntervalEnv   = "STORE_INTERVAL"
 	fileStoragePathEnv = "FILE_STORAGE_PATH"
 	restoreEnv         = "RESTORE"
+	databaseDsnEnv     = "DATABASE_DSN"
 
-	defaultScheme  = "http"
-	defaultAddress = "localhost:8080"
+	defaultScheme      = "http"
+	defaultAddress     = "localhost:8080"
+	defaultDatabaseDsn = "postgresql://metrics:metrics@localhost:5432/metrics?sslmode=disable"
 
 	defaultStoreIntervalString = "300"
 	defaultStoreInterval       = 300
@@ -46,6 +50,10 @@ func GetConfig() error {
 
 	if ServerAddress = os.Getenv(addressEnvName); ServerAddress == "" {
 		ServerAddress = defaultAddress
+	}
+
+	if DatabaseDsn = os.Getenv(databaseDsnEnv); DatabaseDsn == "" {
+		DatabaseDsn = defaultDatabaseDsn
 	}
 
 	if storeIntervalString = os.Getenv(storeIntervalEnv); storeIntervalString == "" {
@@ -66,6 +74,7 @@ func GetConfig() error {
 
 	flag.StringVar(&ServerScheme, "s", ServerScheme, "server scheme: http or https")
 	flag.StringVar(&ServerAddress, "a", ServerAddress, "address and port of the server")
+	flag.StringVar(&DatabaseDsn, "d", DatabaseDsn, "DB DSN")
 
 	flag.IntVar(&storeIntervalSec, "i", storeIntervalSec, "snapshot data interval")
 	flag.StringVar(&FileStoragePath, "f", FileStoragePath, "snapshot file path")

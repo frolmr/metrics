@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"database/sql"
 	"net/http"
 
 	"github.com/frolmr/metrics.git/internal/domain"
@@ -11,20 +12,33 @@ import (
 
 type RequestHandler struct {
 	repo storage.Repository
+	db   *sql.DB
 }
 
-func NewRequestHandler(repo storage.Repository) *RequestHandler {
+func NewRequestHandler(repo storage.Repository, db *sql.DB) *RequestHandler {
 	return &RequestHandler{
 		repo: repo,
+		db:   db,
 	}
 }
 
 type MetricsRequester interface {
+	Ping() http.HandlerFunc
 	UpdateMetric() http.HandlerFunc
 	UpdateMetricJSON() http.HandlerFunc
 	GetMetric() http.HandlerFunc
 	GetMetricJSON() http.HandlerFunc
 	GetMetrics() http.HandlerFunc
+}
+
+func (rh *RequestHandler) Ping() http.HandlerFunc {
+	return func(res http.ResponseWriter, req *http.Request) {
+		if err := rh.db.Ping(); err != nil {
+			http.Error(res, "DB unavailable", http.StatusInternalServerError)
+			return
+		}
+		res.WriteHeader(http.StatusOK)
+	}
 }
 
 func (rh *RequestHandler) UpdateMetric() http.HandlerFunc {

@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/frolmr/metrics.git/internal/server/storage"
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/chi/v5"
@@ -38,7 +39,13 @@ func TestMetricsUpdate(t *testing.T) {
 		CounterMetrics: make(map[string]int64),
 		GaugeMetrics:   make(map[string]float64),
 	}
-	rh := NewRequestHandler(ms)
+
+	db, _, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+	}
+	defer db.Close()
+	rh := NewRequestHandler(ms, db)
 
 	r := chi.NewRouter()
 	r.Post("/update/{type}/{name}/{value}", rh.UpdateMetric())
@@ -123,7 +130,13 @@ func TestGetMetricHandler(t *testing.T) {
 		CounterMetrics: map[string]int64{"cTest1": 200, "cTest2": 128},
 		GaugeMetrics:   map[string]float64{"gTest1": 2.12, "gTest2": 0.54},
 	}
-	rh := NewRequestHandler(ms)
+
+	db, _, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+	}
+	defer db.Close()
+	rh := NewRequestHandler(ms, db)
 
 	r := chi.NewRouter()
 	r.Get("/value/{type}/{name}", rh.GetMetric())
@@ -216,7 +229,12 @@ func TestGetMetricsHandler(t *testing.T) {
 		CounterMetrics: map[string]int64{"cTest1": 200, "cTest2": 128},
 		GaugeMetrics:   map[string]float64{"gTest1": 2.12, "gTest2": 0.54},
 	}
-	rh := NewRequestHandler(ms)
+	db, _, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+	}
+	defer db.Close()
+	rh := NewRequestHandler(ms, db)
 
 	r := chi.NewRouter()
 	r.Use(middleware.ContentCharset("UTF-8"))
@@ -253,5 +271,50 @@ func TestGetMetricsHandler(t *testing.T) {
 		body, code := testRequest(t, ts, tt.method, tt.path, tt.contentType)
 		assert.Equal(t, tt.want.statusCode, code)
 		assert.Equal(t, tt.want.response, body)
+	}
+}
+
+func TestPingHandler(t *testing.T) {
+	ms := storage.MemStorage{
+		CounterMetrics: map[string]int64{},
+		GaugeMetrics:   map[string]float64{},
+	}
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+	}
+	defer db.Close()
+	rh := NewRequestHandler(ms, db)
+
+	r := chi.NewRouter()
+	r.Use(middleware.ContentCharset("UTF-8"))
+	r.Use(middleware.AllowContentType("text/plain"))
+	r.Get("/ping", rh.Ping())
+
+	ts := httptest.NewServer(r)
+	defer ts.Close()
+
+	mock.ExpectPing()
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("there were unfulfilled expectations: %s", err)
+	}
+
+	type want struct {
+		statusCode int
+	}
+	tests := []struct {
+		want want
+	}{
+		{
+			want: want{
+				statusCode: http.StatusOK,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		_, code := testRequest(t, ts, http.MethodGet, "/ping", "text/plain;charset=utf-8")
+		assert.Equal(t, tt.want.statusCode, code)
 	}
 }

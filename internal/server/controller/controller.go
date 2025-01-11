@@ -1,6 +1,8 @@
 package controller
 
 import (
+	"database/sql"
+
 	"github.com/frolmr/metrics.git/internal/server/handlers"
 	"github.com/frolmr/metrics.git/internal/server/logger"
 	"github.com/frolmr/metrics.git/internal/server/middleware"
@@ -11,12 +13,14 @@ import (
 type Controller struct {
 	repo   storage.Repository
 	logger *logger.Logger
+	db     *sql.DB
 }
 
-func NewController(repo storage.Repository, lgr *logger.Logger) *Controller {
+func NewController(repo storage.Repository, lgr *logger.Logger, db *sql.DB) *Controller {
 	return &Controller{
 		repo:   repo,
 		logger: lgr,
+		db:     db,
 	}
 }
 
@@ -26,7 +30,7 @@ func (c *Controller) SetupHandlers() chi.Router {
 	r.Use(middleware.Compressor)
 	r.Use(middleware.WithLog(c.logger))
 
-	rh := handlers.NewRequestHandler(c.repo)
+	rh := handlers.NewRequestHandler(c.repo, c.db)
 
 	r.Get("/", rh.GetMetrics())
 
@@ -39,6 +43,8 @@ func (c *Controller) SetupHandlers() chi.Router {
 		r.Post("/", rh.GetMetricJSON())
 		r.Get("/{type}/{name}", rh.GetMetric())
 	})
+
+	r.Get("/ping", rh.Ping())
 
 	return r
 }
