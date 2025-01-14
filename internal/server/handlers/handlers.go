@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"database/sql"
 	"net/http"
 
 	"github.com/frolmr/metrics.git/internal/domain"
@@ -12,13 +11,11 @@ import (
 
 type RequestHandler struct {
 	repo storage.Repository
-	db   *sql.DB
 }
 
-func NewRequestHandler(repo storage.Repository, db *sql.DB) *RequestHandler {
+func NewRequestHandler(repo storage.Repository) *RequestHandler {
 	return &RequestHandler{
 		repo: repo,
-		db:   db,
 	}
 }
 
@@ -33,7 +30,7 @@ type MetricsRequester interface {
 
 func (rh *RequestHandler) Ping() http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
-		if err := rh.db.Ping(); err != nil {
+		if err := rh.repo.Ping(); err != nil {
 			http.Error(res, "DB unavailable", http.StatusInternalServerError)
 			return
 		}
@@ -120,7 +117,9 @@ func (rh *RequestHandler) updateMetric(metricName, metricType, metricValue strin
 		if err != nil {
 			return err
 		}
-		rh.repo.UpdateGaugeMetric(metricName, value)
+		if err := rh.repo.UpdateGaugeMetric(metricName, value); err != nil {
+			return err
+		}
 	}
 
 	if metricType == domain.CounterType {
@@ -128,7 +127,9 @@ func (rh *RequestHandler) updateMetric(metricName, metricType, metricValue strin
 		if err != nil {
 			return err
 		}
-		rh.repo.UpdateCounterMetric(metricName, value)
+		if err := rh.repo.UpdateCounterMetric(metricName, value); err != nil {
+			return err
+		}
 	}
 	return nil
 }

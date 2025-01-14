@@ -6,7 +6,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/frolmr/metrics.git/internal/server/storage"
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/chi/v5"
@@ -40,12 +39,7 @@ func TestMetricsUpdate(t *testing.T) {
 		GaugeMetrics:   make(map[string]float64),
 	}
 
-	db, _, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
-	}
-	defer db.Close()
-	rh := NewRequestHandler(ms, db)
+	rh := NewRequestHandler(ms)
 
 	r := chi.NewRouter()
 	r.Post("/update/{type}/{name}/{value}", rh.UpdateMetric())
@@ -131,12 +125,7 @@ func TestGetMetricHandler(t *testing.T) {
 		GaugeMetrics:   map[string]float64{"gTest1": 2.12, "gTest2": 0.54},
 	}
 
-	db, _, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
-	}
-	defer db.Close()
-	rh := NewRequestHandler(ms, db)
+	rh := NewRequestHandler(ms)
 
 	r := chi.NewRouter()
 	r.Get("/value/{type}/{name}", rh.GetMetric())
@@ -229,12 +218,7 @@ func TestGetMetricsHandler(t *testing.T) {
 		CounterMetrics: map[string]int64{"cTest1": 200, "cTest2": 128},
 		GaugeMetrics:   map[string]float64{"gTest1": 2.12, "gTest2": 0.54},
 	}
-	db, _, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
-	}
-	defer db.Close()
-	rh := NewRequestHandler(ms, db)
+	rh := NewRequestHandler(ms)
 
 	r := chi.NewRouter()
 	r.Use(middleware.ContentCharset("UTF-8"))
@@ -279,12 +263,7 @@ func TestPingHandler(t *testing.T) {
 		CounterMetrics: map[string]int64{},
 		GaugeMetrics:   map[string]float64{},
 	}
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
-	}
-	defer db.Close()
-	rh := NewRequestHandler(ms, db)
+	rh := NewRequestHandler(ms)
 
 	r := chi.NewRouter()
 	r.Use(middleware.ContentCharset("UTF-8"))
@@ -293,12 +272,6 @@ func TestPingHandler(t *testing.T) {
 
 	ts := httptest.NewServer(r)
 	defer ts.Close()
-
-	mock.ExpectPing()
-
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("there were unfulfilled expectations: %s", err)
-	}
 
 	type want struct {
 		statusCode int

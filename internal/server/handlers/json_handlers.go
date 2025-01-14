@@ -25,9 +25,15 @@ func (rh *RequestHandler) UpdateMetricJSON() http.HandlerFunc {
 		}
 
 		if metricsRequest.Delta != nil {
-			rh.repo.UpdateCounterMetric(metricsRequest.ID, *metricsRequest.Delta)
+			if err := rh.repo.UpdateCounterMetric(metricsRequest.ID, *metricsRequest.Delta); err != nil {
+				http.Error(res, "error updating metric", http.StatusBadRequest)
+				return
+			}
 		} else {
-			rh.repo.UpdateGaugeMetric(metricsRequest.ID, *metricsRequest.Value)
+			if err := rh.repo.UpdateGaugeMetric(metricsRequest.ID, *metricsRequest.Value); err != nil {
+				http.Error(res, "error updating metric", http.StatusBadRequest)
+				return
+			}
 		}
 
 		metricResponse, err := rh.prepareMetricsResponse(metricsRequest.ID, metricsRequest.MType)

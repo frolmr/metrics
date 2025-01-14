@@ -10,14 +10,14 @@ import (
 
 	"github.com/frolmr/metrics.git/internal/server/config"
 	"github.com/frolmr/metrics.git/internal/server/controller"
+	"github.com/frolmr/metrics.git/internal/server/db/migrator"
 	"github.com/frolmr/metrics.git/internal/server/logger"
 	"github.com/frolmr/metrics.git/internal/server/storage"
 )
 
 func main() {
-	var err error
-
-	if err = config.GetConfig(); err != nil {
+	cfg, err := config.NewConfig()
+	if err != nil {
 		log.Panic(err)
 	}
 
@@ -26,14 +26,57 @@ func main() {
 		log.Panic("error initializing logger")
 	}
 
-	db, err := sql.Open("pgx", config.DatabaseDsn)
-	if err != nil {
-		log.Panic("could not connect to DB: ", err.Error())
-	}
-	defer db.Close()
+	ctrl := controller.NewController(l)
 
-	ms := storage.NewMemStorage()
-	fs := storage.NewFileSnapshot(ms, config.FileStoragePath)
+	var dbstor *storage.DBStorage
+	var memstor *storage.MemStorage
+	var server *http.Server
+
+	if cfg.DatabaseDSN != "" {
+		db, err := setupDB(cfg)
+		if err != nil {
+			log.Panic("could not setup to DB: ", err.Error())
+		}
+
+		defer db.Close()
+
+		dbstor = storage.NewDBStorage(db)
+		server = setupServer(ctrl, dbstor, cfg)
+	} else {
+		memstor = storage.NewMemStorage()
+		server = setupServer(ctrl, memstor, cfg)
+		setupSnapshots(cfg, memstor)
+	}
+
+	if err := server.ListenAndServe(); err != nil {
+		log.Panic(err)
+	}
+}
+
+func setupDB(config *config.Config) (*sql.DB, error) {
+	db, err := sql.Open("pgx", config.DatabaseDSN)
+	if err != nil {
+		return nil, err
+	}
+
+	migrator := migrator.NewMigrator(db)
+	if err := migrator.RunMigrations(); err != nil {
+		return nil, err
+	}
+	return db, err
+}
+
+func setupServer(c *controller.Controller, stor storage.Repository, config *config.Config) *http.Server {
+	server := &http.Server{
+		Addr:              config.HTTPAddress,
+		ReadHeaderTimeout: 3 * time.Second,
+		Handler:           c.SetupHandlers(stor),
+	}
+	return server
+}
+
+func setupSnapshots(config *config.Config, stor *storage.MemStorage) {
+	fs := storage.NewFileSnapshot(stor, config.FileStoragePath)
 
 	if config.Restore {
 		if err := fs.RestoreData(); err != nil {
@@ -42,28 +85,16 @@ func main() {
 	}
 
 	if config.StoreInterval != 0 {
-		makeSnapshots(fs)
-	}
-
-	c := controller.NewController(ms, l, db)
-
-	server := &http.Server{
-		Addr:              config.ServerAddress,
-		ReadHeaderTimeout: 3 * time.Second,
-		Handler:           c.SetupHandlers(),
-	}
-
-	if err := server.ListenAndServe(); err != nil {
-		log.Panic(err)
+		makeSnapshots(fs, config.StoreInterval)
 	}
 }
 
-func makeSnapshots(fs *storage.FileSnapshot) {
+func makeSnapshots(fs *storage.FileSnapshot, storeInterval time.Duration) {
 	f := func() {
 		if err := fs.SaveData(); err != nil {
 			log.Println("error saving data to snapshot: ", err.Error())
 		}
-		makeSnapshots(fs)
+		makeSnapshots(fs, storeInterval)
 	}
-	time.AfterFunc(config.StoreInterval, f)
+	time.AfterFunc(storeInterval, f)
 }

@@ -1,8 +1,9 @@
 package storage
 
 type Repository interface {
-	UpdateCounterMetric(name string, value int64)
-	UpdateGaugeMetric(name string, value float64)
+	Ping() error
+	UpdateCounterMetric(name string, value int64) error
+	UpdateGaugeMetric(name string, value float64) error
 
 	GetCounterMetric(name string) (int64, error)
 	GetGaugeMetric(name string) (float64, error)

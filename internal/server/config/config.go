@@ -9,93 +9,87 @@ import (
 	"github.com/frolmr/metrics.git/pkg/formatter"
 )
 
-var (
-	ServerScheme  string
-	ServerAddress string
-
-	storeIntervalString string
-	storeIntervalSec    int
-	restoreString       string
-
-	StoreInterval   time.Duration
-	FileStoragePath string
-	Restore         bool
-
-	DatabaseDsn string
-)
-
 const (
-	schemeEnvName  = "SCHEME"
-	addressEnvName = "ADDRESS"
-
+	schemeEnvName      = "SCHEME"
+	addressEnvName     = "ADDRESS"
 	storeIntervalEnv   = "STORE_INTERVAL"
 	fileStoragePathEnv = "FILE_STORAGE_PATH"
 	restoreEnv         = "RESTORE"
 	databaseDsnEnv     = "DATABASE_DSN"
 
-	defaultScheme      = "http"
-	defaultAddress     = "localhost:8080"
-	defaultDatabaseDsn = "postgresql://metrics:metrics@localhost:5432/metrics?sslmode=disable"
-
-	defaultStoreIntervalString = "300"
-	defaultStoreInterval       = 300
-	defaultFileStoragePath     = "data_snapshot"
-	defaultRestoreString       = "true"
+	defaultScheme          = "http"
+	defaultAddress         = "localhost:8080"
+	defaultStoreInterval   = 300
+	defaultFileStoragePath = "data_snapshot"
+	defaultRestore         = false
 )
 
-func GetConfig() error {
-	if ServerScheme = os.Getenv(schemeEnvName); ServerScheme == "" {
-		ServerScheme = defaultScheme
+type Config struct {
+	Scheme      string
+	HTTPAddress string
+	DatabaseDSN string
+
+	StoreInterval   time.Duration
+	FileStoragePath string
+	Restore         bool
+}
+
+func NewConfig() (*Config, error) {
+	serverScheme := os.Getenv(schemeEnvName)
+	if serverScheme == "" {
+		serverScheme = defaultScheme
 	}
 
-	if ServerAddress = os.Getenv(addressEnvName); ServerAddress == "" {
-		ServerAddress = defaultAddress
+	flag.StringVar(&serverScheme, "s", serverScheme, "server scheme: http or https")
+
+	if err := formatter.CheckSchemeFormat(serverScheme); err != nil {
+		return nil, err
 	}
 
-	if DatabaseDsn = os.Getenv(databaseDsnEnv); DatabaseDsn == "" {
-		DatabaseDsn = defaultDatabaseDsn
+	serverHTTPAddress := os.Getenv(addressEnvName)
+	if serverHTTPAddress == "" {
+		serverHTTPAddress = defaultAddress
 	}
 
-	if storeIntervalString = os.Getenv(storeIntervalEnv); storeIntervalString == "" {
-		storeIntervalString = defaultStoreIntervalString
-	}
-	var err error
-	if storeIntervalSec, err = strconv.Atoi(storeIntervalString); err != nil {
-		storeIntervalSec = 300
+	flag.StringVar(&serverHTTPAddress, "a", serverHTTPAddress, "address and port of the server")
+
+	if err := formatter.CheckAddrFormat(serverHTTPAddress); err != nil {
+		return nil, err
 	}
 
-	if FileStoragePath = os.Getenv(fileStoragePathEnv); FileStoragePath == "" {
-		FileStoragePath = defaultFileStoragePath
-	}
+	databaseDsn := os.Getenv(databaseDsnEnv)
+	flag.StringVar(&databaseDsn, "d", databaseDsn, "DB DSN")
 
-	if restoreString = os.Getenv(restoreEnv); restoreString == "" {
-		restoreString = defaultRestoreString
-	}
-
-	flag.StringVar(&ServerScheme, "s", ServerScheme, "server scheme: http or https")
-	flag.StringVar(&ServerAddress, "a", ServerAddress, "address and port of the server")
-	flag.StringVar(&DatabaseDsn, "d", DatabaseDsn, "DB DSN")
-
+	storeIntervalSec, _ := strconv.Atoi(os.Getenv(storeIntervalEnv))
 	flag.IntVar(&storeIntervalSec, "i", storeIntervalSec, "snapshot data interval")
-	flag.StringVar(&FileStoragePath, "f", FileStoragePath, "snapshot file path")
+
+	if storeIntervalSec == 0 {
+		storeIntervalSec = defaultStoreInterval
+	}
+
+	fileStoragePath := os.Getenv(fileStoragePathEnv)
+	if fileStoragePath == "" {
+		fileStoragePath = defaultFileStoragePath
+	}
+
+	flag.StringVar(&fileStoragePath, "f", fileStoragePath, "snapshot file path")
+
+	restoreString := os.Getenv(restoreEnv)
 	flag.StringVar(&restoreString, "r", restoreString, "bool flag for set snapshoting")
 
 	flag.Parse()
 
-	if err := formatter.CheckSchemeFormat(ServerScheme); err != nil {
-		return err
-	}
-
-	if err := formatter.CheckAddrFormat(ServerAddress); err != nil {
-		return err
-	}
-
-	StoreInterval = time.Duration(storeIntervalSec) * time.Second
-
-	Restore = false
+	restore := defaultRestore
 	if restoreString == "true" {
-		Restore = true
+		restore = true
 	}
 
-	return nil
+	return &Config{
+		Scheme:          serverScheme,
+		HTTPAddress:     serverHTTPAddress,
+		DatabaseDSN:     databaseDsn,
+		StoreInterval:   time.Duration(storeIntervalSec) * time.Second,
+		FileStoragePath: fileStoragePath,
+		Restore:         restore,
+	}, nil
 }

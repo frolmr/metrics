@@ -16,12 +16,18 @@ func NewMemStorage() *MemStorage {
 	}
 }
 
-func (ms MemStorage) UpdateCounterMetric(name string, value int64) {
-	ms.CounterMetrics[name] += value
+func (ms MemStorage) Ping() error {
+	return nil
 }
 
-func (ms MemStorage) UpdateGaugeMetric(name string, value float64) {
+func (ms MemStorage) UpdateCounterMetric(name string, value int64) error {
+	ms.CounterMetrics[name] += value
+	return nil
+}
+
+func (ms MemStorage) UpdateGaugeMetric(name string, value float64) error {
 	ms.GaugeMetrics[name] = value
+	return nil
 }
 
 func (ms MemStorage) GetCounterMetric(name string) (int64, error) {
