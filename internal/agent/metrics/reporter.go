@@ -11,34 +11,38 @@ import (
 )
 
 type MetricsReporter interface {
-	ReportCounterMetric()
-	ReportGaugeMetric()
+	ReportMetrics()
 }
 
-func (mc *MetricsCollection) ReportCounterMetrics() {
-	for key, value := range mc.CounterMetrics {
-		metric := domain.Metrics{
-			ID:    key,
-			MType: domain.CounterType,
-			Delta: &value,
-		}
-		mc.reportMetric(metric)
-	}
-}
+func (mc *MetricsCollection) ReportMetrics() {
+	metrics := make([]domain.Metrics, 0, len(mc.GaugeMetrics)+len(mc.CounterMetrics))
 
-func (mc *MetricsCollection) ReportGaugeMetrics() {
 	for key, value := range mc.GaugeMetrics {
 		metric := domain.Metrics{
 			ID:    key,
 			MType: domain.GaugeType,
 			Value: &value,
 		}
-		mc.reportMetric(metric)
+		metrics = append(metrics, metric)
 	}
+	for key, value := range mc.CounterMetrics {
+		metric := domain.Metrics{
+			ID:    key,
+			MType: domain.CounterType,
+			Delta: &value,
+		}
+		metrics = append(metrics, metric)
+	}
+
+	if len(metrics) == 0 {
+		return
+	}
+
+	mc.reportMetric(metrics)
 }
 
-func (mc *MetricsCollection) reportMetric(metric domain.Metrics) {
-	compressedData, err := mc.compressPayload(metric)
+func (mc *MetricsCollection) reportMetric(metrics []domain.Metrics) {
+	compressedData, err := mc.compressPayload(metrics)
 	if err != nil {
 		log.Println("compression failure ", err.Error())
 		return
@@ -50,18 +54,18 @@ func (mc *MetricsCollection) reportMetric(metric domain.Metrics) {
 		SetBody(compressedData).
 		SetPathParam("serverScheme", config.ServerScheme).
 		SetPathParam("serverHost", config.ServerAddress).
-		Post("{serverScheme}://{serverHost}/update")
+		Post("{serverScheme}://{serverHost}/updates/")
 
 	if err != nil {
 		log.Println("request failure ", err.Error())
 		return
 	}
 
-	log.Println(resp)
+	log.Println(resp.StatusCode())
 }
 
-func (mc *MetricsCollection) compressPayload(metric domain.Metrics) (*bytes.Buffer, error) {
-	metricJSON, err := json.Marshal(metric)
+func (mc *MetricsCollection) compressPayload(metrics []domain.Metrics) (*bytes.Buffer, error) {
+	metricJSON, err := json.Marshal(metrics)
 	if err != nil {
 		return nil, err
 	}

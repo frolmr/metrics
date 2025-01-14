@@ -28,17 +28,18 @@ func (c *Controller) SetupHandlers(storage storage.Repository) chi.Router {
 
 	r.Get("/", rh.GetMetrics())
 
-	r.Route("/update", func(r chi.Router) {
+	r.Route("/update/", func(r chi.Router) {
 		r.Post("/", rh.UpdateMetricJSON())
 		r.Post("/{type}/{name}/{value}", rh.UpdateMetric())
 	})
 
-	r.Route("/value", func(r chi.Router) {
+	r.Route("/value/", func(r chi.Router) {
 		r.Post("/", rh.GetMetricJSON())
 		r.Get("/{type}/{name}", rh.GetMetric())
 	})
 
 	r.Get("/ping", rh.Ping())
+	r.Post("/updates/", rh.BulkUpdateMetricJSON())
 
 	return r
 }

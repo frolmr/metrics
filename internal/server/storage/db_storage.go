@@ -2,6 +2,8 @@ package storage
 
 import (
 	"database/sql"
+
+	"github.com/frolmr/metrics.git/internal/domain"
 )
 
 type DBStorage struct {
@@ -26,37 +28,79 @@ func (ds DBStorage) Ping() error {
 }
 
 func (ds DBStorage) UpdateCounterMetric(name string, value int64) error {
-	_, err := ds.GetCounterMetric(name)
+	stmt, err := ds.insertCounterMetricStatement()
 	if err != nil {
-		_, err := ds.db.Exec("INSERT INTO counter_metrics(name, value) VALUES ($1, $2)", name, value)
-		if err != nil {
-			return err
-		}
-	} else {
-		_, err := ds.db.Exec("UPDATE counter_metrics SET value = $1 WHERE name = $2", value, name)
-		if err != nil {
-			return err
-		}
+		return err
+	}
+	_, err = stmt.Exec(name, value)
+	if err != nil {
+		return err
 	}
 
 	return nil
 }
 
 func (ds DBStorage) UpdateGaugeMetric(name string, value float64) error {
-	_, err := ds.GetGaugeMetric(name)
+	stmt, err := ds.insertGaugeMetricStatement()
 	if err != nil {
-		_, err := ds.db.Exec("INSERT INTO gauge_metrics(name, value) VALUES ($1, $2)", name, value)
-		if err != nil {
-			return err
-		}
-	} else {
-		_, err := ds.db.Exec("UPDATE gauge_metrics SET value = $1 WHERE name = $2", value, name)
-		if err != nil {
-			return err
-		}
+		return err
+	}
+	_, err = stmt.Exec(name, value)
+	if err != nil {
+		return err
 	}
 
 	return nil
+}
+
+func (ds DBStorage) UpdateMetrics(metrics []domain.Metrics) error {
+	tx, err := ds.db.Begin()
+	if err != nil {
+		return err
+	}
+
+	for _, m := range metrics {
+		if m.MType == domain.CounterType {
+			stmt, err := ds.insertCounterMetricStatement()
+			if err != nil {
+				_ = tx.Rollback()
+				return err
+			}
+			_, err = tx.Stmt(stmt).Exec(m.ID, *m.Delta)
+			if err != nil {
+				_ = tx.Rollback()
+				return err
+			}
+		} else {
+			stmt, err := ds.insertGaugeMetricStatement()
+			if err != nil {
+				_ = tx.Rollback()
+				return err
+			}
+			_, err = tx.Stmt(stmt).Exec(m.ID, *m.Value)
+			if err != nil {
+				_ = tx.Rollback()
+				return err
+			}
+		}
+	}
+	return tx.Commit()
+}
+
+func (ds DBStorage) insertCounterMetricStatement() (*sql.Stmt, error) {
+	queryString := "INSERT INTO counter_metrics(name, value) " +
+		"VALUES ($1, $2) " +
+		"ON CONFLICT (name) DO UPDATE SET value = counter_metrics.value + $2"
+
+	return ds.db.Prepare(queryString)
+}
+
+func (ds DBStorage) insertGaugeMetricStatement() (*sql.Stmt, error) {
+	queryString := "INSERT INTO gauge_metrics(name, value)" +
+		"VALUES ($1, $2) " +
+		"ON CONFLICT (name) DO UPDATE SET value = $2"
+
+	return ds.db.Prepare(queryString)
 }
 
 func (ds DBStorage) GetCounterMetric(name string) (int64, error) {

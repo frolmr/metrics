@@ -2,6 +2,8 @@ package storage
 
 import (
 	"errors"
+
+	"github.com/frolmr/metrics.git/internal/domain"
 )
 
 type MemStorage struct {
@@ -27,6 +29,21 @@ func (ms MemStorage) UpdateCounterMetric(name string, value int64) error {
 
 func (ms MemStorage) UpdateGaugeMetric(name string, value float64) error {
 	ms.GaugeMetrics[name] = value
+	return nil
+}
+
+func (ms MemStorage) UpdateMetrics(metrics []domain.Metrics) error {
+	for _, v := range metrics {
+		if v.MType == domain.CounterType {
+			if err := ms.UpdateCounterMetric(v.ID, *v.Delta); err != nil {
+				return err
+			}
+		} else {
+			if err := ms.UpdateGaugeMetric(v.ID, *v.Value); err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 

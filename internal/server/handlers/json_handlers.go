@@ -53,6 +53,25 @@ func (rh *RequestHandler) UpdateMetricJSON() http.HandlerFunc {
 	}
 }
 
+func (rh *RequestHandler) BulkUpdateMetricJSON() http.HandlerFunc {
+	return func(res http.ResponseWriter, req *http.Request) {
+		res.Header().Set("Content-Type", domain.JSONContentType)
+
+		metricsSlice, err := rh.readPayloadToMetricsSlice(req)
+		if err != nil {
+			http.Error(res, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		if err := rh.repo.UpdateMetrics(metricsSlice); err != nil {
+			http.Error(res, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		res.WriteHeader(http.StatusOK)
+	}
+}
+
 func (rh *RequestHandler) GetMetricJSON() http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
 		res.Header().Set("Content-Type", domain.JSONContentType)
@@ -95,6 +114,20 @@ func (rh *RequestHandler) readPayloadToMetrics(req *http.Request) (domain.Metric
 	}
 	if err := json.Unmarshal(buf.Bytes(), &metrics); err != nil {
 		return domain.Metrics{}, err
+	}
+	return metrics, nil
+}
+
+func (rh *RequestHandler) readPayloadToMetricsSlice(req *http.Request) ([]domain.Metrics, error) {
+	var metrics []domain.Metrics
+	var buf bytes.Buffer
+
+	_, err := buf.ReadFrom(req.Body)
+	if err != nil {
+		return []domain.Metrics{}, err
+	}
+	if err := json.Unmarshal(buf.Bytes(), &metrics); err != nil {
+		return []domain.Metrics{}, err
 	}
 	return metrics, nil
 }

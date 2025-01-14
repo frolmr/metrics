@@ -25,8 +25,7 @@ func main() {
 	}()
 
 	for {
-		mtrcs.ReportGaugeMetrics()
-		mtrcs.ReportCounterMetrics()
+		mtrcs.ReportMetrics()
 		time.Sleep(config.ReportInterval)
 	}
 }
