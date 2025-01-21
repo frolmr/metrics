@@ -57,11 +57,11 @@ func TestParseFlags(t *testing.T) {
 		os.Args = append([]string{"cmd"}, test.args...)
 
 		flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
-		_ = GetConfig()
+		config, _ := NewConfig()
 
-		assert.Equal(t, test.want.host, ServerAddress)
-		assert.Equal(t, test.want.reportInterval, ReportInterval)
-		assert.Equal(t, test.want.pollInterval, PollInterval)
+		assert.Equal(t, test.want.host, config.HTTPAddress)
+		assert.Equal(t, test.want.reportInterval, config.ReportInterval)
+		assert.Equal(t, test.want.pollInterval, config.PollInterval)
 	}
 }
 
@@ -82,7 +82,7 @@ func TestEnvVariables(t *testing.T) {
 			envName:  "ADDRESS",
 			envValue: "localhost:8090",
 			want: want{
-				host:           "localhost:8081",
+				host:           "localhost:8090",
 				reportInterval: 20 * time.Second,
 				pollInterval:   5 * time.Second,
 			},
@@ -113,7 +113,7 @@ func TestEnvVariables(t *testing.T) {
 			envValue: "30",
 			want: want{
 				host:           "localhost:8080",
-				reportInterval: 20 * time.Second,
+				reportInterval: 30 * time.Second,
 				pollInterval:   2 * time.Second,
 			},
 		},
@@ -144,7 +144,7 @@ func TestEnvVariables(t *testing.T) {
 			want: want{
 				host:           "localhost:8080",
 				reportInterval: 10 * time.Second,
-				pollInterval:   5 * time.Second,
+				pollInterval:   8 * time.Second,
 			},
 		},
 		{
@@ -174,11 +174,115 @@ func TestEnvVariables(t *testing.T) {
 		os.Args = append([]string{"cmd"}, test.args...)
 
 		flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
-		_ = GetConfig()
+		config, _ := NewConfig()
 		os.Unsetenv(test.envName)
 
-		assert.Equal(t, test.want.host, ServerAddress)
-		assert.Equal(t, test.want.reportInterval, ReportInterval)
-		assert.Equal(t, test.want.pollInterval, PollInterval)
+		assert.Equal(t, test.want.host, config.HTTPAddress)
+		assert.Equal(t, test.want.reportInterval, config.ReportInterval)
+		assert.Equal(t, test.want.pollInterval, config.PollInterval)
+	}
+}
+
+func TestParseKeyFlag(t *testing.T) {
+	type want struct {
+		key string
+	}
+	tests := []struct {
+		args     []string
+		envName  string
+		envValue string
+		want     want
+	}{
+		{
+			args:     []string{"-k", "super_secret_key"},
+			envName:  "KEY",
+			envValue: "not_so_secret",
+			want: want{
+				key: "not_so_secret",
+			},
+		},
+		{
+			args:     []string{},
+			envName:  "KEY",
+			envValue: "secret_key",
+			want: want{
+				key: "secret_key",
+			},
+		},
+		{
+			args:     []string{""},
+			envName:  "SOME_VAR",
+			envValue: "SOME_VAL",
+			want: want{
+				key: "",
+			},
+		},
+	}
+
+	for _, test := range tests {
+		os.Setenv(test.envName, test.envValue)
+		os.Args = append([]string{"cmd"}, test.args...)
+
+		flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+		config, _ := NewConfig()
+		os.Clearenv()
+
+		assert.Equal(t, test.want.key, config.Key)
+	}
+}
+
+func TestParseRateLimitFlag(t *testing.T) {
+	type want struct {
+		rateLimit int
+	}
+	tests := []struct {
+		args     []string
+		envName  string
+		envValue string
+		want     want
+	}{
+		{
+			args:     []string{"-l", "10"},
+			envName:  "RATE_LIMIT",
+			envValue: "8",
+			want: want{
+				rateLimit: 8,
+			},
+		},
+		{
+			args:     []string{"-l", "10"},
+			envName:  "SOME_VAR",
+			envValue: "25",
+			want: want{
+				rateLimit: 10,
+			},
+		},
+		{
+			args:     []string{},
+			envName:  "RATE_LIMIT",
+			envValue: "9",
+			want: want{
+				rateLimit: 9,
+			},
+		},
+		{
+			args:     []string{""},
+			envName:  "SOME_VAR",
+			envValue: "SOME_VAL",
+			want: want{
+				rateLimit: 5,
+			},
+		},
+	}
+
+	for _, test := range tests {
+		os.Setenv(test.envName, test.envValue)
+		os.Args = append([]string{"cmd"}, test.args...)
+
+		flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+		config, _ := NewConfig()
+		os.Clearenv()
+
+		assert.Equal(t, test.want.rateLimit, config.RateLimit)
 	}
 }

@@ -9,76 +9,89 @@ import (
 	"github.com/frolmr/metrics.git/pkg/formatter"
 )
 
-var (
-	ServerScheme  string
-	ServerAddress string
-
-	reportIntervalSec int
-	pollIntervalSec   int
-
-	reportIntervalSecString string
-	pollIntervalSecString   string
-
-	ReportInterval time.Duration
-	PollInterval   time.Duration
-)
-
 const (
 	schemeEnvName         = "SCHEME"
 	addressEnvName        = "ADDRESS"
 	reportIntervalEnvName = "REPORT_INTERVAL"
 	pollIntervalEnvName   = "POLL_INTERVAL"
+	keyEnv                = "KEY"
+	rateLimitEnvName      = "RATE_LIMIT"
 
 	defaultScheme            = "http"
 	defaultAddress           = "localhost:8080"
 	defaultReportIntervalSec = 10
 	defaultPollIntervalSec   = 2
+	defaultRateLimit         = 5
 )
 
-func GetConfig() error {
-	var err error
+type Config struct {
+	Scheme      string
+	HTTPAddress string
 
-	if ServerScheme = os.Getenv(schemeEnvName); ServerScheme == "" {
-		ServerScheme = defaultScheme
-	}
+	ReportInterval time.Duration
+	PollInterval   time.Duration
 
-	if ServerAddress = os.Getenv(addressEnvName); ServerAddress == "" {
-		ServerAddress = defaultAddress
-	}
+	Key string
 
-	if reportIntervalSecString = os.Getenv(reportIntervalEnvName); reportIntervalSecString == "" {
-		reportIntervalSec = defaultReportIntervalSec
-	} else {
-		if reportIntervalSec, err = strconv.Atoi(reportIntervalSecString); err != nil {
-			reportIntervalSec = defaultReportIntervalSec
-		}
-	}
+	RateLimit int
+}
 
-	if pollIntervalSecString = os.Getenv(pollIntervalEnvName); pollIntervalSecString == "" {
-		pollIntervalSec = defaultPollIntervalSec
-	} else {
-		if pollIntervalSec, err = strconv.Atoi(pollIntervalSecString); err != nil {
-			pollIntervalSec = defaultPollIntervalSec
-		}
-	}
+func NewConfig() (*Config, error) {
+	var (
+		serverScheme      string
+		serverHTTPAddress string
+		reportIntervalSec int
+		pollIntervalSec   int
+		key               string
+		rateLimit         int
+	)
 
-	flag.StringVar(&ServerScheme, "s", ServerScheme, "server scheme: http or https")
-	flag.StringVar(&ServerAddress, "a", ServerAddress, "address and port of the server")
-	flag.IntVar(&reportIntervalSec, "r", reportIntervalSec, "report interval")
-	flag.IntVar(&pollIntervalSec, "p", pollIntervalSec, "poll interval")
-
+	flag.StringVar(&serverScheme, "s", defaultScheme, "server scheme: http or https")
+	flag.StringVar(&serverHTTPAddress, "a", defaultAddress, "address and port of the server")
+	flag.IntVar(&reportIntervalSec, "r", defaultReportIntervalSec, "report interval")
+	flag.IntVar(&pollIntervalSec, "p", defaultPollIntervalSec, "poll interval")
+	flag.StringVar(&key, "k", key, "encryption key")
+	flag.IntVar(&rateLimit, "l", defaultRateLimit, "requests to server rate limit")
 	flag.Parse()
 
-	if err := formatter.CheckSchemeFormat(ServerScheme); err != nil {
-		return err
+	if serverSchemeEnv := os.Getenv(schemeEnvName); serverSchemeEnv != "" {
+		serverScheme = serverSchemeEnv
 	}
 
-	if err := formatter.CheckAddrFormat(ServerAddress); err != nil {
-		return err
+	if err := formatter.CheckSchemeFormat(serverScheme); err != nil {
+		return nil, err
 	}
 
-	ReportInterval = time.Duration(reportIntervalSec) * time.Second
-	PollInterval = time.Duration(pollIntervalSec) * time.Second
+	if serverHTTPAddressEnv := os.Getenv(addressEnvName); serverHTTPAddressEnv != "" {
+		serverHTTPAddress = serverHTTPAddressEnv
+	}
 
-	return nil
+	if err := formatter.CheckAddrFormat(serverHTTPAddress); err != nil {
+		return nil, err
+	}
+
+	if reportIntervalSecEnv, _ := strconv.Atoi(os.Getenv(reportIntervalEnvName)); reportIntervalSecEnv != 0 {
+		reportIntervalSec = reportIntervalSecEnv
+	}
+
+	if pollIntervalSecEnv, _ := strconv.Atoi(os.Getenv(pollIntervalEnvName)); pollIntervalSecEnv != 0 {
+		pollIntervalSec = pollIntervalSecEnv
+	}
+
+	if keyEnv := os.Getenv(keyEnv); keyEnv != "" {
+		key = keyEnv
+	}
+
+	if rateLimitEnv, _ := strconv.Atoi(os.Getenv(rateLimitEnvName)); rateLimitEnv != 0 {
+		rateLimit = rateLimitEnv
+	}
+
+	return &Config{
+		Scheme:         serverScheme,
+		HTTPAddress:    serverHTTPAddress,
+		ReportInterval: time.Duration(reportIntervalSec) * time.Second,
+		PollInterval:   time.Duration(pollIntervalSec) * time.Second,
+		Key:            key,
+		RateLimit:      rateLimit,
+	}, nil
 }

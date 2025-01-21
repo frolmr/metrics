@@ -34,7 +34,6 @@ func (rh *RequestHandler) Ping() http.HandlerFunc {
 			http.Error(res, "DB unavailable", http.StatusInternalServerError)
 			return
 		}
-		res.WriteHeader(http.StatusOK)
 	}
 }
 
@@ -57,8 +56,10 @@ func (rh *RequestHandler) UpdateMetric() http.HandlerFunc {
 			return
 		}
 
-		res.WriteHeader(http.StatusOK)
-		_, _ = res.Write([]byte("Metric: " + metricName + " value: " + metricValue + " has added"))
+		if _, err := res.Write([]byte("Metric: " + metricName + " value: " + metricValue + " has added")); err != nil {
+			http.Error(res, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 }
 
@@ -74,15 +75,19 @@ func (rh *RequestHandler) GetMetric() http.HandlerFunc {
 			if value, err := rh.repo.GetCounterMetric(metricName); err != nil {
 				http.Error(res, "Metric Not Found", http.StatusNotFound)
 			} else {
-				res.WriteHeader(http.StatusOK)
-				_, _ = res.Write([]byte(formatter.IntToString(value)))
+				if _, err := res.Write([]byte(formatter.IntToString(value))); err != nil {
+					http.Error(res, err.Error(), http.StatusInternalServerError)
+					return
+				}
 			}
 		case domain.GaugeType:
 			if value, err := rh.repo.GetGaugeMetric(metricName); err != nil {
 				http.Error(res, "Metric Not Found", http.StatusNotFound)
 			} else {
-				res.WriteHeader(http.StatusOK)
-				_, _ = res.Write([]byte(formatter.FloatToString(value)))
+				if _, err := res.Write([]byte(formatter.FloatToString(value))); err != nil {
+					http.Error(res, err.Error(), http.StatusInternalServerError)
+					return
+				}
 			}
 		default:
 			http.Error(res, "Wrong metric type", http.StatusBadRequest)
@@ -99,15 +104,20 @@ func (rh *RequestHandler) GetMetrics() http.HandlerFunc {
 			res.Header().Set("content-type", domain.TextContentType)
 		}
 
-		res.WriteHeader(http.StatusOK)
 		counterMetrics, _ := rh.repo.GetCounterMetrics()
 		for name, value := range counterMetrics {
-			_, _ = res.Write([]byte(name + " " + formatter.IntToString(value) + "\n"))
+			if _, err := res.Write([]byte(name + " " + formatter.IntToString(value) + "\n")); err != nil {
+				http.Error(res, err.Error(), http.StatusInternalServerError)
+				return
+			}
 		}
 
 		gaugeMetrics, _ := rh.repo.GetGaugeMetrics()
 		for name, value := range gaugeMetrics {
-			_, _ = res.Write([]byte(name + " " + formatter.FloatToString(value) + "\n"))
+			if _, err := res.Write([]byte(name + " " + formatter.FloatToString(value) + "\n")); err != nil {
+				http.Error(res, err.Error(), http.StatusInternalServerError)
+				return
+			}
 		}
 	}
 }

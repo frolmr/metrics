@@ -48,8 +48,10 @@ func (rh *RequestHandler) UpdateMetricJSON() http.HandlerFunc {
 			return
 		}
 
-		res.WriteHeader(http.StatusOK)
-		_, _ = res.Write(resp)
+		if _, err := res.Write(resp); err != nil {
+			http.Error(res, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 }
 
@@ -99,8 +101,10 @@ func (rh *RequestHandler) GetMetricJSON() http.HandlerFunc {
 			return
 		}
 
-		res.WriteHeader(http.StatusOK)
-		_, _ = res.Write(resp)
+		if _, err := res.Write(resp); err != nil {
+			http.Error(res, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 }
 

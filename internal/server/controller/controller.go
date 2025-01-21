@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"github.com/frolmr/metrics.git/internal/server/config"
 	"github.com/frolmr/metrics.git/internal/server/handlers"
 	"github.com/frolmr/metrics.git/internal/server/logger"
 	"github.com/frolmr/metrics.git/internal/server/middleware"
@@ -10,11 +11,13 @@ import (
 
 type Controller struct {
 	logger *logger.Logger
+	config *config.Config
 }
 
-func NewController(lgr *logger.Logger) *Controller {
+func NewController(lgr *logger.Logger, cfg *config.Config) *Controller {
 	return &Controller{
 		logger: lgr,
+		config: cfg,
 	}
 }
 
@@ -23,6 +26,7 @@ func (c *Controller) SetupHandlers(stor storage.Repository) chi.Router {
 
 	r.Use(middleware.Compressor)
 	r.Use(middleware.WithLog(c.logger))
+	r.Use(middleware.WithSignature(c.config.Key))
 
 	rh := handlers.NewRequestHandler(stor)
 

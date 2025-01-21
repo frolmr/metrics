@@ -2,6 +2,11 @@ package main
 
 import (
 	"log"
+	"os"
+	"os/signal"
+	"runtime"
+	"sync"
+	"syscall"
 	"time"
 
 	"github.com/frolmr/metrics.git/internal/agent/config"
@@ -10,22 +15,61 @@ import (
 )
 
 func main() {
-	if err := config.GetConfig(); err != nil {
+	cfg, err := config.NewConfig()
+	if err != nil {
 		log.Panic(err)
 	}
 
 	client := resty.New()
-	mtrcs := metrics.NewMetricsCollection(client)
+	mtrcs := metrics.NewMetricsCollection(client, cfg)
 
+	jobsCh := make(chan metrics.MetricsCollection, runtime.GOMAXPROCS(0))
+
+	var wg sync.WaitGroup
+	for i := 0; i < cfg.RateLimit; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for job := range jobsCh {
+				job.ReportMetrics()
+			}
+		}()
+	}
+
+	doneCh := make(chan struct{})
+	defer close(doneCh)
+
+	pollTicker := time.NewTicker(cfg.PollInterval)
 	go func() {
 		for {
-			mtrcs.CollectMetrics()
-			time.Sleep(config.PollInterval)
+			select {
+			case <-pollTicker.C:
+				go mtrcs.CollectMetrics()
+				go mtrcs.CollectAdditionalMetrics()
+			case <-doneCh:
+				return
+			}
 		}
 	}()
 
-	for {
-		mtrcs.ReportMetrics()
-		time.Sleep(config.ReportInterval)
-	}
+	reportTicker := time.NewTicker(cfg.ReportInterval)
+	go func() {
+		for {
+			select {
+			case <-reportTicker.C:
+				jobsCh <- *mtrcs
+			case <-doneCh:
+				return
+			}
+		}
+	}()
+
+	termCh := make(chan os.Signal, 1)
+	signal.Notify(termCh, syscall.SIGINT)
+	<-termCh
+	pollTicker.Stop()
+	reportTicker.Stop()
+	doneCh <- struct{}{}
+	close(jobsCh)
+	wg.Wait()
 }
