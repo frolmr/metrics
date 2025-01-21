@@ -10,22 +10,23 @@ import (
 )
 
 func main() {
-	if err := config.GetConfig(); err != nil {
+	cfg, err := config.NewConfig()
+	if err != nil {
 		log.Panic(err)
 	}
 
 	client := resty.New()
-	mtrcs := metrics.NewMetricsCollection(client)
+	mtrcs := metrics.NewMetricsCollection(client, cfg)
 
 	go func() {
 		for {
 			mtrcs.CollectMetrics()
-			time.Sleep(config.PollInterval)
+			time.Sleep(cfg.PollInterval)
 		}
 	}()
 
 	for {
 		mtrcs.ReportMetrics()
-		time.Sleep(config.ReportInterval)
+		time.Sleep(cfg.ReportInterval)
 	}
 }

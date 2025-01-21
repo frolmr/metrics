@@ -1,6 +1,8 @@
 package formatter
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
 	"errors"
 	"strconv"
 	"strings"
@@ -51,4 +53,10 @@ func CheckAddrFormat(addr string) error {
 	}
 
 	return nil
+}
+
+func SignPayloadWithKey(payload, key []byte) []byte {
+	h := hmac.New(sha256.New, key)
+	h.Write(payload)
+	return h.Sum(nil)
 }

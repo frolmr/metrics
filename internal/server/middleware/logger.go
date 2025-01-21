@@ -16,12 +16,16 @@ type (
 	loggingResponseWriter struct {
 		http.ResponseWriter
 		responseData *responseData
+		wroteHeader  bool
 	}
 )
 
 func (r *loggingResponseWriter) Write(b []byte) (int, error) {
 	size, err := r.ResponseWriter.Write(b)
 	r.responseData.size += size
+	if !r.wroteHeader {
+		r.WriteHeader(http.StatusOK)
+	}
 	return size, err
 }
 

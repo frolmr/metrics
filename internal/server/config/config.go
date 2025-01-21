@@ -16,6 +16,7 @@ const (
 	fileStoragePathEnv = "FILE_STORAGE_PATH"
 	restoreEnv         = "RESTORE"
 	databaseDsnEnv     = "DATABASE_DSN"
+	keyEnv             = "KEY"
 
 	defaultScheme          = "http"
 	defaultAddress         = "localhost:8080"
@@ -32,6 +33,8 @@ type Config struct {
 	StoreInterval   time.Duration
 	FileStoragePath string
 	Restore         bool
+
+	Key string
 }
 
 func NewConfig() (*Config, error) {
@@ -77,7 +80,11 @@ func NewConfig() (*Config, error) {
 	restoreString := os.Getenv(restoreEnv)
 	flag.StringVar(&restoreString, "r", restoreString, "bool flag for set snapshoting")
 
+	var key string
+	flag.StringVar(&key, "k", key, "encryption key")
+
 	flag.Parse()
+	key = os.Getenv(keyEnv)
 
 	restore := defaultRestore
 	if restoreString == "true" {
@@ -91,5 +98,6 @@ func NewConfig() (*Config, error) {
 		StoreInterval:   time.Duration(storeIntervalSec) * time.Second,
 		FileStoragePath: fileStoragePath,
 		Restore:         restore,
+		Key:             key,
 	}, nil
 }

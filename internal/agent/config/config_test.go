@@ -57,11 +57,11 @@ func TestParseFlags(t *testing.T) {
 		os.Args = append([]string{"cmd"}, test.args...)
 
 		flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
-		_ = GetConfig()
+		config, _ := NewConfig()
 
-		assert.Equal(t, test.want.host, ServerAddress)
-		assert.Equal(t, test.want.reportInterval, ReportInterval)
-		assert.Equal(t, test.want.pollInterval, PollInterval)
+		assert.Equal(t, test.want.host, config.HTTPAddress)
+		assert.Equal(t, test.want.reportInterval, config.ReportInterval)
+		assert.Equal(t, test.want.pollInterval, config.PollInterval)
 	}
 }
 
@@ -174,11 +174,59 @@ func TestEnvVariables(t *testing.T) {
 		os.Args = append([]string{"cmd"}, test.args...)
 
 		flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
-		_ = GetConfig()
+		config, _ := NewConfig()
 		os.Unsetenv(test.envName)
 
-		assert.Equal(t, test.want.host, ServerAddress)
-		assert.Equal(t, test.want.reportInterval, ReportInterval)
-		assert.Equal(t, test.want.pollInterval, PollInterval)
+		assert.Equal(t, test.want.host, config.HTTPAddress)
+		assert.Equal(t, test.want.reportInterval, config.ReportInterval)
+		assert.Equal(t, test.want.pollInterval, config.PollInterval)
+	}
+}
+
+func TestParseKeyFlag(t *testing.T) {
+	type want struct {
+		key string
+	}
+	tests := []struct {
+		args     []string
+		envName  string
+		envValue string
+		want     want
+	}{
+		{
+			args:     []string{"-k", "super_secret_key"},
+			envName:  "KEY",
+			envValue: "not_so_secret",
+			want: want{
+				key: "super_secret_key",
+			},
+		},
+		{
+			args:     []string{},
+			envName:  "KEY",
+			envValue: "secret_key",
+			want: want{
+				key: "secret_key",
+			},
+		},
+		{
+			args:     []string{""},
+			envName:  "SOME_VAR",
+			envValue: "SOME_VAL",
+			want: want{
+				key: "",
+			},
+		},
+	}
+
+	for _, test := range tests {
+		os.Setenv(test.envName, test.envValue)
+		os.Args = append([]string{"cmd"}, test.args...)
+
+		flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+		config, _ := NewConfig()
+		os.Clearenv()
+
+		assert.Equal(t, test.want.key, config.Key)
 	}
 }

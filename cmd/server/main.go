@@ -26,7 +26,7 @@ func main() {
 		log.Panic("error initializing logger")
 	}
 
-	ctrl := controller.NewController(l)
+	ctrl := controller.NewController(l, cfg)
 
 	var server *http.Server
 
@@ -65,12 +65,11 @@ func setupDB(cfg *config.Config) (*sql.DB, error) {
 }
 
 func setupServer(c *controller.Controller, stor storage.Repository, cfg *config.Config) *http.Server {
-	server := &http.Server{
+	return &http.Server{
 		Addr:              cfg.HTTPAddress,
 		ReadHeaderTimeout: 3 * time.Second,
 		Handler:           c.SetupHandlers(stor),
 	}
-	return server
 }
 
 func setupSnapshots(cfg *config.Config, stor *storage.MemStorage) {

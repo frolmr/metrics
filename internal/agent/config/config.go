@@ -9,25 +9,12 @@ import (
 	"github.com/frolmr/metrics.git/pkg/formatter"
 )
 
-var (
-	ServerScheme  string
-	ServerAddress string
-
-	reportIntervalSec int
-	pollIntervalSec   int
-
-	reportIntervalSecString string
-	pollIntervalSecString   string
-
-	ReportInterval time.Duration
-	PollInterval   time.Duration
-)
-
 const (
 	schemeEnvName         = "SCHEME"
 	addressEnvName        = "ADDRESS"
 	reportIntervalEnvName = "REPORT_INTERVAL"
 	pollIntervalEnvName   = "POLL_INTERVAL"
+	keyEnv                = "KEY"
 
 	defaultScheme            = "http"
 	defaultAddress           = "localhost:8080"
@@ -35,50 +22,57 @@ const (
 	defaultPollIntervalSec   = 2
 )
 
-func GetConfig() error {
-	var err error
+type Config struct {
+	Scheme      string
+	HTTPAddress string
 
-	if ServerScheme = os.Getenv(schemeEnvName); ServerScheme == "" {
-		ServerScheme = defaultScheme
+	ReportInterval time.Duration
+	PollInterval   time.Duration
+
+	Key string
+}
+
+func NewConfig() (*Config, error) {
+	serverScheme := os.Getenv(schemeEnvName)
+	if serverScheme == "" {
+		serverScheme = defaultScheme
+	}
+	flag.StringVar(&serverScheme, "s", serverScheme, "server scheme: http or https")
+	if err := formatter.CheckSchemeFormat(serverScheme); err != nil {
+		return nil, err
 	}
 
-	if ServerAddress = os.Getenv(addressEnvName); ServerAddress == "" {
-		ServerAddress = defaultAddress
+	serverHTTPAddress := os.Getenv(addressEnvName)
+	if serverHTTPAddress == "" {
+		serverHTTPAddress = defaultAddress
+	}
+	flag.StringVar(&serverHTTPAddress, "a", serverHTTPAddress, "address and port of the server")
+	if err := formatter.CheckAddrFormat(serverHTTPAddress); err != nil {
+		return nil, err
 	}
 
-	if reportIntervalSecString = os.Getenv(reportIntervalEnvName); reportIntervalSecString == "" {
+	reportIntervalSec, err := strconv.Atoi(os.Getenv(reportIntervalEnvName))
+	if err != nil {
 		reportIntervalSec = defaultReportIntervalSec
-	} else {
-		if reportIntervalSec, err = strconv.Atoi(reportIntervalSecString); err != nil {
-			reportIntervalSec = defaultReportIntervalSec
-		}
 	}
-
-	if pollIntervalSecString = os.Getenv(pollIntervalEnvName); pollIntervalSecString == "" {
-		pollIntervalSec = defaultPollIntervalSec
-	} else {
-		if pollIntervalSec, err = strconv.Atoi(pollIntervalSecString); err != nil {
-			pollIntervalSec = defaultPollIntervalSec
-		}
-	}
-
-	flag.StringVar(&ServerScheme, "s", ServerScheme, "server scheme: http or https")
-	flag.StringVar(&ServerAddress, "a", ServerAddress, "address and port of the server")
 	flag.IntVar(&reportIntervalSec, "r", reportIntervalSec, "report interval")
+
+	pollIntervalSec, err := strconv.Atoi(os.Getenv(pollIntervalEnvName))
+	if err != nil {
+		pollIntervalSec = defaultPollIntervalSec
+	}
 	flag.IntVar(&pollIntervalSec, "p", pollIntervalSec, "poll interval")
+
+	key := os.Getenv(keyEnv)
+	flag.StringVar(&key, "k", key, "encryption key")
 
 	flag.Parse()
 
-	if err := formatter.CheckSchemeFormat(ServerScheme); err != nil {
-		return err
-	}
-
-	if err := formatter.CheckAddrFormat(ServerAddress); err != nil {
-		return err
-	}
-
-	ReportInterval = time.Duration(reportIntervalSec) * time.Second
-	PollInterval = time.Duration(pollIntervalSec) * time.Second
-
-	return nil
+	return &Config{
+		Scheme:         serverScheme,
+		HTTPAddress:    serverHTTPAddress,
+		ReportInterval: time.Duration(reportIntervalSec) * time.Second,
+		PollInterval:   time.Duration(pollIntervalSec) * time.Second,
+		Key:            key,
+	}, nil
 }

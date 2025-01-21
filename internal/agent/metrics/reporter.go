@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"log"
@@ -12,8 +13,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/frolmr/metrics.git/internal/agent/config"
 	"github.com/frolmr/metrics.git/internal/domain"
+	"github.com/frolmr/metrics.git/pkg/formatter"
 )
 
 type MetricsReporter interface {
@@ -68,18 +69,31 @@ func (mc *MetricsCollection) ReportMetrics() {
 }
 
 func (mc *MetricsCollection) reportMetrics(metrics []domain.Metrics) error {
-	compressedData, err := mc.compressPayload(metrics)
+	metricsJSON, err := json.Marshal(metrics)
+	if err != nil {
+		return err
+	}
+
+	compressedData, err := mc.compressPayload(metricsJSON)
 	if err != nil {
 		log.Println("compression failure ", err.Error())
 		return err
 	}
 
-	resp, err := mc.ReportClinet.R().
+	cl := mc.ReportClinet.R().
 		SetHeader("Content-Type", domain.JSONContentType).
 		SetHeader("Content-Encoding", domain.CompressFormat).
 		SetBody(compressedData).
-		SetPathParam("serverScheme", config.ServerScheme).
-		SetPathParam("serverHost", config.ServerAddress).
+		SetPathParam("serverScheme", mc.Config.Scheme).
+		SetPathParam("serverHost", mc.Config.HTTPAddress)
+
+	var signature []byte
+	if mc.Config.Key != "" {
+		signature = formatter.SignPayloadWithKey(metricsJSON, []byte(mc.Config.Key))
+		cl.SetHeader(domain.SignatureHeader, hex.EncodeToString(signature))
+	}
+
+	resp, err := cl.
 		Post("{serverScheme}://{serverHost}/updates/")
 
 	if err != nil {
@@ -88,19 +102,14 @@ func (mc *MetricsCollection) reportMetrics(metrics []domain.Metrics) error {
 	}
 
 	log.Println("got resp code from server: ", resp.StatusCode())
+	log.Println("got signature from server: ", resp.Header().Get(domain.SignatureHeader))
 	return nil
 }
 
-func (mc *MetricsCollection) compressPayload(metrics []domain.Metrics) (*bytes.Buffer, error) {
-	metricJSON, err := json.Marshal(metrics)
-	if err != nil {
-		return nil, err
-	}
-
+func (mc *MetricsCollection) compressPayload(metricsJSON []byte) (*bytes.Buffer, error) {
 	buf := bytes.NewBuffer(nil)
 	zb := gzip.NewWriter(buf)
-	_, err = zb.Write(metricJSON)
-	if err != nil {
+	if _, err := zb.Write(metricsJSON); err != nil {
 		return nil, err
 	}
 
