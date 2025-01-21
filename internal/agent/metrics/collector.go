@@ -3,9 +3,14 @@ package metrics
 import (
 	"crypto/rand"
 	"errors"
+	"fmt"
+	"log"
 	"math"
 	"math/big"
 	"runtime"
+
+	"github.com/shirou/gopsutil/cpu"
+	"github.com/shirou/gopsutil/mem"
 )
 
 type MetricsCollector interface {
@@ -50,6 +55,23 @@ func (mc *MetricsCollection) CollectMetrics() (counterMetrics map[string]int64, 
 	mc.GaugeMetrics["TotalAlloc"] = float64(ms.TotalAlloc)
 
 	return mc.CounterMetrics, mc.GaugeMetrics
+}
+
+func (mc *MetricsCollection) CollectAdditionalMetrics() {
+	m, _ := mem.VirtualMemory()
+
+	mc.GaugeMetrics["TotalMemory"] = float64(m.Total)
+	mc.GaugeMetrics["FreeMemory"] = float64(m.Free)
+
+	c, err := cpu.Percent(0, true)
+	if err != nil {
+		log.Println("cant get cpu metric")
+	}
+
+	for i, val := range c {
+		key := fmt.Sprintf("CPUutilization%d", i)
+		mc.GaugeMetrics[key] = float64(val)
+	}
 }
 
 func randomFloat64() (float64, error) {

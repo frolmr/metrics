@@ -152,7 +152,7 @@ func TestHostEnvVariables(t *testing.T) {
 			envName:  "ADDRESS",
 			envValue: "localhost:8090",
 			want: want{
-				host: "localhost:8081",
+				host: "localhost:8090",
 			},
 		},
 		{
@@ -201,7 +201,7 @@ func TestHostIntervalVariables(t *testing.T) {
 			envName:  "STORE_INTERVAL",
 			envValue: "400",
 			want: want{
-				interval: time.Duration(200) * time.Second,
+				interval: time.Duration(400) * time.Second,
 			},
 		},
 		{
@@ -250,7 +250,7 @@ func TestHostRestoreVariables(t *testing.T) {
 			envName:  "RESTORE",
 			envValue: "true",
 			want: want{
-				restore: false,
+				restore: true,
 			},
 		},
 		{
@@ -289,5 +289,53 @@ func TestHostRestoreVariables(t *testing.T) {
 		os.Clearenv()
 
 		assert.Equal(t, test.want.restore, config.Restore)
+	}
+}
+
+func TestParseKeyFlag(t *testing.T) {
+	type want struct {
+		key string
+	}
+	tests := []struct {
+		args     []string
+		envName  string
+		envValue string
+		want     want
+	}{
+		{
+			args:     []string{"-k", "super_secret_key"},
+			envName:  "KEY",
+			envValue: "not_so_secret",
+			want: want{
+				key: "not_so_secret",
+			},
+		},
+		{
+			args:     []string{},
+			envName:  "KEY",
+			envValue: "secret_key",
+			want: want{
+				key: "secret_key",
+			},
+		},
+		{
+			args:     []string{""},
+			envName:  "SOME_VAR",
+			envValue: "SOME_VAL",
+			want: want{
+				key: "",
+			},
+		},
+	}
+
+	for _, test := range tests {
+		os.Setenv(test.envName, test.envValue)
+		os.Args = append([]string{"cmd"}, test.args...)
+
+		flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+		config, _ := NewConfig()
+		os.Clearenv()
+
+		assert.Equal(t, test.want.key, config.Key)
 	}
 }

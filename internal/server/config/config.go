@@ -16,6 +16,7 @@ const (
 	fileStoragePathEnv = "FILE_STORAGE_PATH"
 	restoreEnv         = "RESTORE"
 	databaseDsnEnv     = "DATABASE_DSN"
+	keyEnv             = "KEY"
 
 	defaultScheme          = "http"
 	defaultAddress         = "localhost:8080"
@@ -32,56 +33,64 @@ type Config struct {
 	StoreInterval   time.Duration
 	FileStoragePath string
 	Restore         bool
+
+	Key string
 }
 
 func NewConfig() (*Config, error) {
-	serverScheme := os.Getenv(schemeEnvName)
-	if serverScheme == "" {
-		serverScheme = defaultScheme
-	}
+	var (
+		serverScheme      string
+		serverHTTPAddress string
+		databaseDsn       string
+		storeIntervalSec  int
+		fileStoragePath   string
+		restore           bool
+		key               string
+	)
 
-	flag.StringVar(&serverScheme, "s", serverScheme, "server scheme: http or https")
+	flag.StringVar(&serverScheme, "s", defaultScheme, "server scheme: http or https")
+	flag.StringVar(&serverHTTPAddress, "a", defaultAddress, "address and port of the server")
+	flag.StringVar(&databaseDsn, "d", databaseDsn, "DB DSN")
+	flag.IntVar(&storeIntervalSec, "i", defaultStoreInterval, "snapshot data interval")
+	flag.StringVar(&fileStoragePath, "f", defaultFileStoragePath, "snapshot file path")
+	flag.BoolVar(&restore, "r", defaultRestore, "bool flag for set snapshoting")
+	flag.StringVar(&key, "k", key, "encryption key")
+	flag.Parse()
+
+	if serverSchemeEnv := os.Getenv(schemeEnvName); serverSchemeEnv != "" {
+		serverScheme = serverSchemeEnv
+	}
 
 	if err := formatter.CheckSchemeFormat(serverScheme); err != nil {
 		return nil, err
 	}
 
-	serverHTTPAddress := os.Getenv(addressEnvName)
-	if serverHTTPAddress == "" {
-		serverHTTPAddress = defaultAddress
+	if serverHTTPAddressEnv := os.Getenv(addressEnvName); serverHTTPAddressEnv != "" {
+		serverHTTPAddress = serverHTTPAddressEnv
 	}
-
-	flag.StringVar(&serverHTTPAddress, "a", serverHTTPAddress, "address and port of the server")
 
 	if err := formatter.CheckAddrFormat(serverHTTPAddress); err != nil {
 		return nil, err
 	}
 
-	databaseDsn := os.Getenv(databaseDsnEnv)
-	flag.StringVar(&databaseDsn, "d", databaseDsn, "DB DSN")
-
-	storeIntervalSec, _ := strconv.Atoi(os.Getenv(storeIntervalEnv))
-	flag.IntVar(&storeIntervalSec, "i", storeIntervalSec, "snapshot data interval")
-
-	if storeIntervalSec == 0 {
-		storeIntervalSec = defaultStoreInterval
+	if databaseDsnEnv := os.Getenv(databaseDsnEnv); databaseDsnEnv != "" {
+		databaseDsn = databaseDsnEnv
 	}
 
-	fileStoragePath := os.Getenv(fileStoragePathEnv)
-	if fileStoragePath == "" {
-		fileStoragePath = defaultFileStoragePath
+	if storeIntervalSecEnv, _ := strconv.Atoi(os.Getenv(storeIntervalEnv)); storeIntervalSecEnv != 0 {
+		storeIntervalSec = storeIntervalSecEnv
 	}
 
-	flag.StringVar(&fileStoragePath, "f", fileStoragePath, "snapshot file path")
+	if fileStoragePathEnv := os.Getenv(fileStoragePathEnv); fileStoragePathEnv != "" {
+		fileStoragePath = fileStoragePathEnv
+	}
 
-	restoreString := os.Getenv(restoreEnv)
-	flag.StringVar(&restoreString, "r", restoreString, "bool flag for set snapshoting")
+	if restoreEnv, err := strconv.ParseBool(os.Getenv(restoreEnv)); err == nil {
+		restore = restoreEnv
+	}
 
-	flag.Parse()
-
-	restore := defaultRestore
-	if restoreString == "true" {
-		restore = true
+	if keyEnv := os.Getenv(keyEnv); keyEnv != "" {
+		key = keyEnv
 	}
 
 	return &Config{
@@ -91,5 +100,6 @@ func NewConfig() (*Config, error) {
 		StoreInterval:   time.Duration(storeIntervalSec) * time.Second,
 		FileStoragePath: fileStoragePath,
 		Restore:         restore,
+		Key:             key,
 	}, nil
 }

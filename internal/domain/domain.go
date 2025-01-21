@@ -9,4 +9,6 @@ const (
 	JSONContentType = "application/json"
 
 	CompressFormat = "gzip"
+
+	SignatureHeader = "HashSHA256"
 )
