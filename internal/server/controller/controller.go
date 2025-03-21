@@ -1,3 +1,4 @@
+// Package for routing and middleware.
 package controller
 
 import (
@@ -14,6 +15,7 @@ type Controller struct {
 	config *config.Config
 }
 
+// NewController function is constructor for controller object.
 func NewController(lgr *logger.Logger, cfg *config.Config) *Controller {
 	return &Controller{
 		logger: lgr,
@@ -21,6 +23,7 @@ func NewController(lgr *logger.Logger, cfg *config.Config) *Controller {
 	}
 }
 
+// SetupHandlers functions is resonsible for app routing
 func (c *Controller) SetupHandlers(stor storage.Repository) chi.Router {
 	r := chi.NewRouter()
 

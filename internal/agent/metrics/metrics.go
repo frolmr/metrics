@@ -17,6 +17,7 @@ type MetricsCollection struct {
 	Config       *config.Config
 }
 
+// NewMetricsCollection is the constructor function for metrics collector and reporter.
 func NewMetricsCollection(reporter *resty.Client, cfg *config.Config) *MetricsCollection {
 	return &MetricsCollection{
 		CounterMetrics: make(map[string]int64),

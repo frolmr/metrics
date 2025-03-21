@@ -26,3 +26,5 @@ vendor/
 
 # Snapshot defaule file
 data_snapshot
+
+.projectile-cache.eld

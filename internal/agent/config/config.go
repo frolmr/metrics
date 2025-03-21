@@ -1,3 +1,4 @@
+// Package config to read flags and env for further agent setup.
 package config
 
 import (
@@ -24,6 +25,7 @@ const (
 	defaultRateLimit         = 5
 )
 
+// Config atructure to store agents configuration.
 type Config struct {
 	Scheme      string
 	HTTPAddress string
@@ -36,6 +38,7 @@ type Config struct {
 	RateLimit int
 }
 
+// NewConfig setups agents config: read flags and env variables.
 func NewConfig() (*Config, error) {
 	var (
 		serverScheme      string

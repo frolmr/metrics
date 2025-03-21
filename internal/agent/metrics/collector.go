@@ -1,3 +1,4 @@
+// Package metrics contains agent functionality to collect and report metrics to server.
 package metrics
 
 import (
@@ -17,6 +18,7 @@ type MetricsCollector interface {
 	CollectMetrics() (map[string]int64, map[string]float64)
 }
 
+// CollectMetrics functions collects metrics from host.
 func (mc *MetricsCollection) CollectMetrics() (counterMetrics map[string]int64, gaugeMetrics map[string]float64) {
 	pollCount++
 
@@ -57,6 +59,7 @@ func (mc *MetricsCollection) CollectMetrics() (counterMetrics map[string]int64, 
 	return mc.CounterMetrics, mc.GaugeMetrics
 }
 
+// CollectAdditionalMetrics functions collects additional metrics from host.
 func (mc *MetricsCollection) CollectAdditionalMetrics() {
 	m, _ := mem.VirtualMemory()
 

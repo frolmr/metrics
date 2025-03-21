@@ -1,3 +1,4 @@
+// Package migrator is responsible to run migrations.
 package migrator
 
 import (
@@ -10,16 +11,19 @@ import (
 //go:embed migrations/*.sql
 var embedMigrations embed.FS
 
+// Migrator structure of object that holds connection to DB.
 type Migrator struct {
 	db *sql.DB
 }
 
+// NewMigrator function for Migrator construction.
 func NewMigrator(db *sql.DB) *Migrator {
 	return &Migrator{
 		db: db,
 	}
 }
 
+// RunMigrations function launches migrations for DB
 func (m *Migrator) RunMigrations() error {
 	goose.SetBaseFS(embedMigrations)
 

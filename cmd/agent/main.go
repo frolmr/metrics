@@ -1,3 +1,4 @@
+// Agent to collect and send metrics to server.
 package main
 
 import (

@@ -1,0 +1,201 @@
+basePath: /
+definitions:
+  domain.Metrics:
+    description: Metrics request payload for metrics data.
+    properties:
+      delta:
+        description: |-
+          Delta is the value of the metric if it's a counter.
+          Example: 10
+        type: integer
+      id:
+        description: |-
+          ID is the name of the metric.
+          Example: "cpu_usage"
+        type: string
+      type:
+        description: |-
+          MType is the type of the metric (gauge or counter).
+          Example: "gauge"
+        type: string
+      value:
+        description: |-
+          Value is the value of the metric if it's a gauge.
+          Example: 3.14
+        type: number
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: Service for metrics storage
+  title: Metrics API
+  version: "1.0"
+paths:
+  /:
+    get:
+      description: Returns a list of all counter and gauge metrics in plain text format.
+      produces:
+      - text/plain
+      - text/html
+      responses:
+        "200":
+          description: List of metrics in plain text or HTML format
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Get all metrics
+      tags:
+      - metrics
+  /metrics/{type}/{name}:
+    get:
+      consumes:
+      - text/plain
+      description: Fetches the value of a metric based on the provided type and name.
+      parameters:
+      - description: Type of the metric
+        in: path
+        name: type
+        required: true
+        type: string
+      - description: Name of the metric
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: The value of the metric
+          schema:
+            type: string
+        "400":
+          description: Invalid request
+          schema:
+            type: string
+        "404":
+          description: Metric not found
+          schema:
+            type: string
+      summary: Get a metric by type and name
+      tags:
+      - Metrics
+  /ping:
+    get:
+      consumes:
+      - text/plain
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: OK
+        "500":
+          description: Internal Server Error
+      summary: Request for API health check
+      tags:
+      - Health
+  /update:
+    post:
+      consumes:
+      - application/json
+      description: Updates a metric with the provided JSON payload.
+      parameters:
+      - description: Metric data to update
+        in: body
+        name: metrics
+        required: true
+        schema:
+          $ref: '#/definitions/domain.Metrics'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Updated metric
+          schema:
+            $ref: '#/definitions/domain.Metrics'
+        "400":
+          description: Invalid request payload or metric type
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Update a metric
+      tags:
+      - metrics
+  /updates:
+    post:
+      consumes:
+      - application/json
+      description: Updates multiple metrics with the provided JSON payload.
+      parameters:
+      - description: List of metrics to update
+        in: body
+        name: metrics
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/domain.Metrics'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Metrics updated successfully
+          schema:
+            type: string
+        "400":
+          description: Invalid request payload
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Update multiple metrics
+      tags:
+      - metrics
+  /value:
+    post:
+      consumes:
+      - application/json
+      description: Retrieves a metric with the provided JSON payload.
+      parameters:
+      - description: Metric data to retrieve
+        in: body
+        name: metrics
+        required: true
+        schema:
+          $ref: '#/definitions/domain.Metrics'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Requested metric
+          schema:
+            $ref: '#/definitions/domain.Metrics'
+        "400":
+          description: Invalid request payload or metric type
+          schema:
+            type: string
+        "404":
+          description: Metric not found
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Get a metric
+      tags:
+      - metrics
+swagger: "2.0"
+tags:
+- description: '"Requests to check api health"'
+  name: Health
+- description: '"Requests to manipulate metrics"'
+  name: Metrics

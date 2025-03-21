@@ -1,3 +1,4 @@
+// Package handlers hold the business logic of application
 package handlers
 
 import (
@@ -13,6 +14,7 @@ type RequestHandler struct {
 	repo storage.Repository
 }
 
+// NewRequestHandler function is the constructor for handler object that has methods for hadnling requests for app
 func NewRequestHandler(repo storage.Repository) *RequestHandler {
 	return &RequestHandler{
 		repo: repo,
@@ -28,6 +30,12 @@ type MetricsRequester interface {
 	GetMetrics() http.HandlerFunc
 }
 
+// Ping godoc
+// @Tags Health
+// @Summary Request for API health check
+// @Success 200
+// @Failure 500
+// @Router /ping [get]
 func (rh *RequestHandler) Ping() http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
 		if err := rh.repo.Ping(); err != nil {
@@ -37,6 +45,19 @@ func (rh *RequestHandler) Ping() http.HandlerFunc {
 	}
 }
 
+// UpdateMetric updates a metric based on the provided URL parameters.
+// @Summary Update a metric
+// @Description Updates a metric with the provided type, name, and value in the URL path.
+// @Tags metrics
+// @Accept plain
+// @Produce plain
+// @Param type path string true "Type of the metric (gauge or counter)"
+// @Param name path string true "Name of the metric"
+// @Param value path string true "Value of the metric"
+// @Success 200 {string} string "Metric updated successfully"
+// @Failure 400 {string} string "Invalid metric type or value"
+// @Failure 500 {string} string "Internal server error"
+// @Router /update/{type}/{name}/{value} [post]
 func (rh *RequestHandler) UpdateMetric() http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
 		res.Header().Set("content-type", domain.TextContentType)
@@ -63,6 +84,18 @@ func (rh *RequestHandler) UpdateMetric() http.HandlerFunc {
 	}
 }
 
+// GetMetric handles requests to fetch a metric by type and name.
+// @Summary Get a metric by type and name
+// @Description Fetches the value of a metric based on the provided type and name.
+// @Tags Metrics
+// @Accept plain
+// @Produce plain
+// @Param type path string true "Type of the metric"
+// @Param name path string true "Name of the metric"
+// @Success 200 {string} string "The value of the metric"
+// @Failure 400 {string} string "Invalid request"
+// @Failure 404 {string} string "Metric not found"
+// @Router /metrics/{type}/{name} [get]
 func (rh *RequestHandler) GetMetric() http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
 		res.Header().Set("content-type", domain.TextContentType)
@@ -95,6 +128,15 @@ func (rh *RequestHandler) GetMetric() http.HandlerFunc {
 	}
 }
 
+// GetMetrics returns a list of all metrics (counter and gauge) in plain text.
+// @Summary Get all metrics
+// @Description Returns a list of all counter and gauge metrics in plain text format.
+// @Tags metrics
+// @Produce plain
+// @Produce html
+// @Success 200 {string} string "List of metrics in plain text or HTML format"
+// @Failure 500 {string} string "Internal server error"
+// @Router / [get]
 func (rh *RequestHandler) GetMetrics() http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
 		// NOTE: почему-то автотесты 8-й итерации хотят тут "text/html"
@@ -104,7 +146,18 @@ func (rh *RequestHandler) GetMetrics() http.HandlerFunc {
 			res.Header().Set("content-type", domain.TextContentType)
 		}
 
-		counterMetrics, _ := rh.repo.GetCounterMetrics()
+		counterMetrics, err := rh.repo.GetCounterMetrics()
+		if err != nil {
+			http.Error(res, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		gaugeMetrics, err := rh.repo.GetGaugeMetrics()
+		if err != nil {
+			http.Error(res, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
 		for name, value := range counterMetrics {
 			if _, err := res.Write([]byte(name + " " + formatter.IntToString(value) + "\n")); err != nil {
 				http.Error(res, err.Error(), http.StatusInternalServerError)
@@ -112,7 +165,6 @@ func (rh *RequestHandler) GetMetrics() http.HandlerFunc {
 			}
 		}
 
-		gaugeMetrics, _ := rh.repo.GetGaugeMetrics()
 		for name, value := range gaugeMetrics {
 			if _, err := res.Write([]byte(name + " " + formatter.FloatToString(value) + "\n")); err != nil {
 				http.Error(res, err.Error(), http.StatusInternalServerError)
