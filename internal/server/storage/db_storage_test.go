@@ -95,12 +95,10 @@ func TestUpdateMetrics(t *testing.T) {
 		},
 	}
 
+	mock.ExpectPrepare("INSERT INTO gauge_metrics")
+	mock.ExpectPrepare("INSERT INTO counter_metrics")
 	mock.ExpectBegin()
-	mock.ExpectPrepare("INSERT INTO gauge_metrics")
-	mock.ExpectPrepare("INSERT INTO gauge_metrics")
 	mock.ExpectExec("INSERT INTO gauge_metrics").WithArgs("tg", 1.1).WillReturnResult(sqlmock.NewResult(1, 1))
-	mock.ExpectPrepare("INSERT INTO counter_metrics")
-	mock.ExpectPrepare("INSERT INTO counter_metrics")
 	mock.ExpectExec("INSERT INTO counter_metrics").WithArgs("tc", 11).WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectCommit()
 

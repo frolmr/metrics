@@ -75,6 +75,16 @@ func (ds DBStorage) splitInGroups(metrics []domain.Metrics) [][]domain.Metrics {
 func (ds DBStorage) UpdateMetrics(metrics []domain.Metrics) error {
 	metricsGroups := ds.splitInGroups(metrics)
 
+	counterStmt, err := ds.insertGaugeMetricStatement()
+	if err != nil {
+		return err
+	}
+
+	gaugeStmt, err := ds.insertCounterMetricStatement()
+	if err != nil {
+		return err
+	}
+
 	for _, group := range metricsGroups {
 		tx, err := ds.db.Begin()
 		if err != nil {
@@ -83,23 +93,13 @@ func (ds DBStorage) UpdateMetrics(metrics []domain.Metrics) error {
 
 		for _, m := range group {
 			if m.MType == domain.CounterType {
-				stmt, err := ds.insertCounterMetricStatement()
-				if err != nil {
-					_ = tx.Rollback()
-					return err
-				}
-				_, err = tx.Stmt(stmt).Exec(m.ID, *m.Delta)
+				_, err = tx.Stmt(gaugeStmt).Exec(m.ID, *m.Delta)
 				if err != nil {
 					_ = tx.Rollback()
 					return err
 				}
 			} else {
-				stmt, err := ds.insertGaugeMetricStatement()
-				if err != nil {
-					_ = tx.Rollback()
-					return err
-				}
-				_, err = tx.Stmt(stmt).Exec(m.ID, *m.Value)
+				_, err = tx.Stmt(counterStmt).Exec(m.ID, *m.Value)
 				if err != nil {
 					_ = tx.Rollback()
 					return err

@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"time"
 
+	_ "net/http/pprof" //nolint:gosec //need for the task
+
 	_ "github.com/jackc/pgx/v5/stdlib"
 
 	"github.com/frolmr/metrics.git/internal/server/config"
@@ -19,6 +21,23 @@ func main() {
 	cfg, err := config.NewConfig()
 	if err != nil {
 		log.Panic(err)
+	}
+
+	if cfg.Profiling {
+		go func() {
+			log.Println("Starting pprof server on :6060...")
+
+			server := &http.Server{
+				Addr:         "localhost:6060",
+				ReadTimeout:  3 * time.Second,
+				WriteTimeout: 3 * time.Second,
+				IdleTimeout:  5 * time.Second,
+			}
+
+			if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				log.Fatalf("Failed to start pprof server: %v", err)
+			}
+		}()
 	}
 
 	l, err := logger.NewLogger()

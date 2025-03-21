@@ -1,6 +1,6 @@
 module github.com/frolmr/metrics.git
 
-go 1.22.9
+go 1.24.1
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
