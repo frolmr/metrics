@@ -9,6 +9,17 @@ import (
 	"github.com/frolmr/metrics.git/internal/domain"
 )
 
+// UpdateMetricJSON updates a metric based on the provided JSON payload.
+// @Summary Update a metric
+// @Description Updates a metric with the provided JSON payload.
+// @Tags metrics
+// @Accept json
+// @Produce json
+// @Param metrics body domain.Metrics true "Metric data to update"
+// @Success 200 {object} domain.Metrics "Updated metric"
+// @Failure 400 {string} string "Invalid request payload or metric type"
+// @Failure 500 {string} string "Internal server error"
+// @Router /update [post]
 func (rh *RequestHandler) UpdateMetricJSON() http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
 		res.Header().Set("Content-Type", domain.JSONContentType)
@@ -55,6 +66,17 @@ func (rh *RequestHandler) UpdateMetricJSON() http.HandlerFunc {
 	}
 }
 
+// BulkUpdateMetricJSON updates multiple metrics based on the provided JSON payload.
+// @Summary Update multiple metrics
+// @Description Updates multiple metrics with the provided JSON payload.
+// @Tags metrics
+// @Accept json
+// @Produce json
+// @Param metrics body []domain.Metrics true "List of metrics to update"
+// @Success 200 {string} string "Metrics updated successfully"
+// @Failure 400 {string} string "Invalid request payload"
+// @Failure 500 {string} string "Internal server error"
+// @Router /updates [post]
 func (rh *RequestHandler) BulkUpdateMetricJSON() http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
 		res.Header().Set("Content-Type", domain.JSONContentType)
@@ -74,6 +96,18 @@ func (rh *RequestHandler) BulkUpdateMetricJSON() http.HandlerFunc {
 	}
 }
 
+// GetMetricJSON retrieves a metric based on the provided JSON payload.
+// @Summary Get a metric
+// @Description Retrieves a metric with the provided JSON payload.
+// @Tags metrics
+// @Accept json
+// @Produce json
+// @Param metrics body domain.Metrics true "Metric data to retrieve"
+// @Success 200 {object} domain.Metrics "Requested metric"
+// @Failure 400 {string} string "Invalid request payload or metric type"
+// @Failure 404 {string} string "Metric not found"
+// @Failure 500 {string} string "Internal server error"
+// @Router /value [post]
 func (rh *RequestHandler) GetMetricJSON() http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
 		res.Header().Set("Content-Type", domain.JSONContentType)

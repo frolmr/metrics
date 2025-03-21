@@ -3,6 +3,7 @@ package storage
 import (
 	"testing"
 
+	"github.com/frolmr/metrics.git/internal/domain"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -51,4 +52,27 @@ func TestMemStorage(t *testing.T) {
 		vals, _ := ms.GetGaugeMetrics()
 		assert.EqualValues(t, ms.GaugeMetrics, vals)
 	})
+}
+
+func TestMemStorageGetCounterMetric_Error(t *testing.T) {
+	ms := NewMemStorage()
+
+	_, err := ms.GetCounterMetric("nonexistent")
+	assert.Error(t, err)
+	assert.Equal(t, "value not found", err.Error())
+}
+
+func TestMemStorageGetGaugeMetric_Error(t *testing.T) {
+	ms := NewMemStorage()
+
+	_, err := ms.GetGaugeMetric("nonexistent")
+	assert.Error(t, err)
+	assert.Equal(t, "value not found", err.Error())
+}
+
+func TestMemStorageUpdateMetrics_EmptyInput(t *testing.T) {
+	ms := NewMemStorage()
+
+	err := ms.UpdateMetrics([]domain.Metrics{})
+	assert.NoError(t, err)
 }

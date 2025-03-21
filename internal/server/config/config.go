@@ -1,3 +1,4 @@
+// Package config to read flags and env for further server setup.
 package config
 
 import (
@@ -25,6 +26,7 @@ const (
 	defaultRestore         = false
 )
 
+// Config atructure to store server configuration.
 type Config struct {
 	Scheme      string
 	HTTPAddress string
@@ -35,8 +37,11 @@ type Config struct {
 	Restore         bool
 
 	Key string
+
+	Profiling bool
 }
 
+// NewConfig setups server config: read flags and env variables.
 func NewConfig() (*Config, error) {
 	var (
 		serverScheme      string
@@ -46,6 +51,7 @@ func NewConfig() (*Config, error) {
 		fileStoragePath   string
 		restore           bool
 		key               string
+		profile           bool
 	)
 
 	flag.StringVar(&serverScheme, "s", defaultScheme, "server scheme: http or https")
@@ -55,6 +61,7 @@ func NewConfig() (*Config, error) {
 	flag.StringVar(&fileStoragePath, "f", defaultFileStoragePath, "snapshot file path")
 	flag.BoolVar(&restore, "r", defaultRestore, "bool flag for set snapshoting")
 	flag.StringVar(&key, "k", key, "encryption key")
+	flag.BoolVar(&profile, "p", profile, "bool flag for app profiling")
 	flag.Parse()
 
 	if serverSchemeEnv := os.Getenv(schemeEnvName); serverSchemeEnv != "" {
@@ -101,5 +108,6 @@ func NewConfig() (*Config, error) {
 		FileStoragePath: fileStoragePath,
 		Restore:         restore,
 		Key:             key,
+		Profiling:       profile,
 	}, nil
 }

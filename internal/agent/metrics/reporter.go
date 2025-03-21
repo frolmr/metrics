@@ -31,6 +31,7 @@ func isConnectionRefused(err error) bool {
 	return false
 }
 
+// ReportMetrics functions sends http request to server with metrics collected
 func (mc *MetricsCollection) ReportMetrics() {
 	metrics := make([]domain.Metrics, 0, len(mc.GaugeMetrics)+len(mc.CounterMetrics))
 

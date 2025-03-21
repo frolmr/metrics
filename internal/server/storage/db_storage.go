@@ -1,3 +1,4 @@
+// Package storage is responsible for persistence layer logic.
 package storage
 
 import (
@@ -8,6 +9,7 @@ import (
 
 const insertBatchSize = 100
 
+// DBStorage struct holds connection to DB.
 type DBStorage struct {
 	db *sql.DB
 }
@@ -16,6 +18,7 @@ type Number interface {
 	int64 | float64
 }
 
+// NewDBStorage function is constructor for storage object
 func NewDBStorage(db *sql.DB) *DBStorage {
 	return &DBStorage{
 		db: db,
@@ -29,6 +32,7 @@ func (ds DBStorage) Ping() error {
 	return nil
 }
 
+// UpdateCounterMetric functions update counter metric in DB
 func (ds DBStorage) UpdateCounterMetric(name string, value int64) error {
 	stmt, err := ds.insertCounterMetricStatement()
 	if err != nil {
@@ -42,6 +46,7 @@ func (ds DBStorage) UpdateCounterMetric(name string, value int64) error {
 	return nil
 }
 
+// UpdateGaugeMetric functions update gauge metric in DB
 func (ds DBStorage) UpdateGaugeMetric(name string, value float64) error {
 	stmt, err := ds.insertGaugeMetricStatement()
 	if err != nil {
@@ -72,8 +77,19 @@ func (ds DBStorage) splitInGroups(metrics []domain.Metrics) [][]domain.Metrics {
 	return batchedMetrics
 }
 
+// UpdateMetrics function is for bulk update of metrics
 func (ds DBStorage) UpdateMetrics(metrics []domain.Metrics) error {
 	metricsGroups := ds.splitInGroups(metrics)
+
+	counterStmt, err := ds.insertGaugeMetricStatement()
+	if err != nil {
+		return err
+	}
+
+	gaugeStmt, err := ds.insertCounterMetricStatement()
+	if err != nil {
+		return err
+	}
 
 	for _, group := range metricsGroups {
 		tx, err := ds.db.Begin()
@@ -83,23 +99,13 @@ func (ds DBStorage) UpdateMetrics(metrics []domain.Metrics) error {
 
 		for _, m := range group {
 			if m.MType == domain.CounterType {
-				stmt, err := ds.insertCounterMetricStatement()
-				if err != nil {
-					_ = tx.Rollback()
-					return err
-				}
-				_, err = tx.Stmt(stmt).Exec(m.ID, *m.Delta)
+				_, err = tx.Stmt(gaugeStmt).Exec(m.ID, *m.Delta)
 				if err != nil {
 					_ = tx.Rollback()
 					return err
 				}
 			} else {
-				stmt, err := ds.insertGaugeMetricStatement()
-				if err != nil {
-					_ = tx.Rollback()
-					return err
-				}
-				_, err = tx.Stmt(stmt).Exec(m.ID, *m.Value)
+				_, err = tx.Stmt(counterStmt).Exec(m.ID, *m.Value)
 				if err != nil {
 					_ = tx.Rollback()
 					return err
@@ -129,6 +135,7 @@ func (ds DBStorage) insertGaugeMetricStatement() (*sql.Stmt, error) {
 	return ds.db.Prepare(queryString)
 }
 
+// GetCounterMetric functions is for counter metric fetch from DB
 func (ds DBStorage) GetCounterMetric(name string) (int64, error) {
 	stmt, err := ds.db.Prepare("SELECT value FROM counter_metrics WHERE name = $1")
 	if err != nil {
@@ -145,6 +152,7 @@ func (ds DBStorage) GetCounterMetric(name string) (int64, error) {
 	return val, nil
 }
 
+// GetCounterMetric functions is for gauge metric fetch from DB
 func (ds DBStorage) GetGaugeMetric(name string) (float64, error) {
 	stmt, err := ds.db.Prepare("SELECT value FROM gauge_metrics WHERE name = $1")
 	if err != nil {
@@ -161,6 +169,7 @@ func (ds DBStorage) GetGaugeMetric(name string) (float64, error) {
 	return val, nil
 }
 
+// GetCounterMetric functions is for all counter metrics fetch from DB
 func (ds DBStorage) GetCounterMetrics() (map[string]int64, error) {
 	vals := make(map[string]int64, 0)
 	stmt, err := ds.db.Prepare("SELECT name, value FROM counter_metrics")
@@ -171,6 +180,7 @@ func (ds DBStorage) GetCounterMetrics() (map[string]int64, error) {
 	return getMetrics(stmt, vals), nil
 }
 
+// GetCounterMetric functions is for all gauge metrics fetch from DB
 func (ds DBStorage) GetGaugeMetrics() (map[string]float64, error) {
 	vals := make(map[string]float64, 0)
 	stmt, err := ds.db.Prepare("SELECT name, value FROM gauge_metrics")

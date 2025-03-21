@@ -1,3 +1,17 @@
+// Server to receive and store metrics.
+
+// @Title Metrics API
+// @Description Service for metrics storage
+// @Version 1.0
+
+// @BasePath /
+// @Host localhost:8080
+
+// @Tag.name Health
+// @Tag.description "Requests to check api health"
+
+// @Tag.name Metrics
+// @Tag.description "Requests to manipulate metrics"
 package main
 
 import (
@@ -5,6 +19,8 @@ import (
 	"log"
 	"net/http"
 	"time"
+
+	_ "net/http/pprof" //nolint:gosec //need for the task
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 
@@ -19,6 +35,23 @@ func main() {
 	cfg, err := config.NewConfig()
 	if err != nil {
 		log.Panic(err)
+	}
+
+	if cfg.Profiling {
+		go func() {
+			log.Println("Starting pprof server on :6060...")
+
+			server := &http.Server{
+				Addr:         "localhost:6060",
+				ReadTimeout:  3 * time.Second,
+				WriteTimeout: 3 * time.Second,
+				IdleTimeout:  5 * time.Second,
+			}
+
+			if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				log.Fatalf("Failed to start pprof server: %v", err)
+			}
+		}()
 	}
 
 	l, err := logger.NewLogger()
