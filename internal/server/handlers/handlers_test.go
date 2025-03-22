@@ -1,20 +1,22 @@
 package handlers
 
 import (
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/frolmr/metrics.git/internal/server/mocks"
 	"github.com/frolmr/metrics.git/internal/server/storage"
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
 
-func testRequest(t *testing.T, ts *httptest.Server, method,
-	path string, contentType string) (string, int) {
+func testRequest(t *testing.T, ts *httptest.Server, method, path string, contentType string) (string, int) {
 	//nolint:noctx // Context will be added later
 	req, err := http.NewRequest(method, ts.URL+path, nil)
 	require.NoError(t, err)
@@ -24,8 +26,6 @@ func testRequest(t *testing.T, ts *httptest.Server, method,
 	resp, err := ts.Client().Do(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
-
-	require.NoError(t, err)
 
 	respBody, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
@@ -290,4 +290,214 @@ func TestPingHandler(t *testing.T) {
 		_, code := testRequest(t, ts, http.MethodGet, "/ping", "text/plain;charset=utf-8")
 		assert.Equal(t, tt.want.statusCode, code)
 	}
+}
+
+func TestUpdateMetric_RepoError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := mocks.NewMockRepository(ctrl)
+
+	mockRepo.EXPECT().
+		UpdateGaugeMetric(gomock.Any(), gomock.Any()).
+		Return(errors.New("repo error")).
+		Times(1)
+
+	mockRepo.EXPECT().
+		UpdateCounterMetric(gomock.Any(), gomock.Any()).
+		Return(errors.New("repo error")).
+		Times(1)
+
+	rh := NewRequestHandler(mockRepo)
+
+	r := chi.NewRouter()
+	r.Post("/update/{type}/{name}/{value}", rh.UpdateMetric())
+
+	ts := httptest.NewServer(r)
+	defer ts.Close()
+
+	tests := []struct {
+		name        string
+		path        string
+		method      string
+		contentType string
+		want        int
+	}{
+		{
+			name:        "repo error for gauge",
+			path:        "/update/gauge/test/25",
+			method:      http.MethodPost,
+			contentType: "text/plain",
+			want:        http.StatusBadRequest,
+		},
+		{
+			name:        "repo error for counter",
+			path:        "/update/counter/test/25",
+			method:      http.MethodPost,
+			contentType: "text/plain",
+			want:        http.StatusBadRequest,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, code := testRequest(t, ts, tt.method, tt.path, tt.contentType)
+			assert.Equal(t, tt.want, code)
+		})
+	}
+}
+
+func TestGetMetric_RepoError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := mocks.NewMockRepository(ctrl)
+
+	mockRepo.EXPECT().
+		GetCounterMetric(gomock.Any()).
+		Return(int64(0), errors.New("repo error")).
+		Times(1)
+
+	mockRepo.EXPECT().
+		GetGaugeMetric(gomock.Any()).
+		Return(float64(0), errors.New("repo error")).
+		Times(1)
+
+	rh := NewRequestHandler(mockRepo)
+
+	r := chi.NewRouter()
+	r.Get("/value/{type}/{name}", rh.GetMetric())
+
+	ts := httptest.NewServer(r)
+	defer ts.Close()
+
+	tests := []struct {
+		name        string
+		path        string
+		method      string
+		contentType string
+		want        int
+	}{
+		{
+			name:        "repo error for gauge",
+			path:        "/value/gauge/test",
+			method:      http.MethodGet,
+			contentType: "text/plain;charset=utf-8",
+			want:        http.StatusNotFound,
+		},
+		{
+			name:        "repo error for counter",
+			path:        "/value/counter/test",
+			method:      http.MethodGet,
+			contentType: "text/plain;charset=utf-8",
+			want:        http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, code := testRequest(t, ts, tt.method, tt.path, tt.contentType)
+			assert.Equal(t, tt.want, code)
+		})
+	}
+}
+
+func TestPing_RepoError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := mocks.NewMockRepository(ctrl)
+
+	mockRepo.EXPECT().
+		Ping().
+		Return(errors.New("repo error")).
+		Times(1)
+
+	rh := NewRequestHandler(mockRepo)
+
+	r := chi.NewRouter()
+	r.Use(middleware.ContentCharset("UTF-8"))
+	r.Use(middleware.AllowContentType("text/plain"))
+	r.Get("/ping", rh.Ping())
+
+	ts := httptest.NewServer(r)
+	defer ts.Close()
+
+	tests := []struct {
+		name        string
+		path        string
+		method      string
+		contentType string
+		want        int
+	}{
+		{
+			name:        "repo error",
+			path:        "/ping",
+			method:      http.MethodGet,
+			contentType: "text/plain;charset=utf-8",
+			want:        http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, code := testRequest(t, ts, tt.method, tt.path, tt.contentType)
+			assert.Equal(t, tt.want, code)
+		})
+	}
+}
+
+func TestGetMetrics_CounterMetricsError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := mocks.NewMockRepository(ctrl)
+
+	mockRepo.EXPECT().
+		GetCounterMetrics().
+		Return(nil, errors.New("repo error")).
+		Times(1)
+
+	rh := NewRequestHandler(mockRepo)
+
+	r := chi.NewRouter()
+	r.Use(middleware.ContentCharset("UTF-8"))
+	r.Use(middleware.AllowContentType("text/plain"))
+	r.Get("/", rh.GetMetrics())
+
+	ts := httptest.NewServer(r)
+	defer ts.Close()
+
+	_, code := testRequest(t, ts, http.MethodGet, "/", "text/plain;charset=utf-8")
+	assert.Equal(t, http.StatusInternalServerError, code)
+}
+
+func TestGetMetrics_GaugeMetricsError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := mocks.NewMockRepository(ctrl)
+
+	mockRepo.EXPECT().
+		GetCounterMetrics().
+		Return(map[string]int64{"test": 123}, nil).
+		Times(1)
+
+	mockRepo.EXPECT().
+		GetGaugeMetrics().
+		Return(nil, errors.New("repo error")).
+		Times(1)
+
+	rh := NewRequestHandler(mockRepo)
+
+	r := chi.NewRouter()
+	r.Use(middleware.ContentCharset("UTF-8"))
+	r.Use(middleware.AllowContentType("text/plain"))
+	r.Get("/", rh.GetMetrics())
+
+	ts := httptest.NewServer(r)
+	defer ts.Close()
+
+	_, code := testRequest(t, ts, http.MethodGet, "/", "text/plain;charset=utf-8")
+	assert.Equal(t, http.StatusInternalServerError, code)
 }

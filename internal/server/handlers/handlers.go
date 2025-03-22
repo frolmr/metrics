@@ -104,7 +104,18 @@ func (rh *RequestHandler) GetMetrics() http.HandlerFunc {
 			res.Header().Set("content-type", domain.TextContentType)
 		}
 
-		counterMetrics, _ := rh.repo.GetCounterMetrics()
+		counterMetrics, err := rh.repo.GetCounterMetrics()
+		if err != nil {
+			http.Error(res, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		gaugeMetrics, err := rh.repo.GetGaugeMetrics()
+		if err != nil {
+			http.Error(res, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
 		for name, value := range counterMetrics {
 			if _, err := res.Write([]byte(name + " " + formatter.IntToString(value) + "\n")); err != nil {
 				http.Error(res, err.Error(), http.StatusInternalServerError)
@@ -112,7 +123,6 @@ func (rh *RequestHandler) GetMetrics() http.HandlerFunc {
 			}
 		}
 
-		gaugeMetrics, _ := rh.repo.GetGaugeMetrics()
 		for name, value := range gaugeMetrics {
 			if _, err := res.Write([]byte(name + " " + formatter.FloatToString(value) + "\n")); err != nil {
 				http.Error(res, err.Error(), http.StatusInternalServerError)
