@@ -1,7 +1,7 @@
 package metrics
 
 import (
-	"github.com/frolmr/metrics.git/internal/agent/config"
+	"github.com/frolmr/metrics/internal/agent/config"
 	"github.com/go-resty/resty/v2"
 )
 
@@ -13,7 +13,7 @@ type MetricsCollection struct {
 	CounterMetrics map[string]int64
 	GaugeMetrics   map[string]float64
 
-	ReportClinet *resty.Client
+	ReportClient *resty.Client
 	Config       *config.Config
 }
 
@@ -23,7 +23,7 @@ func NewMetricsCollection(reporter *resty.Client, cfg *config.Config) *MetricsCo
 		CounterMetrics: make(map[string]int64),
 		GaugeMetrics:   make(map[string]float64),
 
-		ReportClinet: reporter,
+		ReportClient: reporter,
 		Config:       cfg,
 	}
 }

@@ -2,11 +2,11 @@
 package controller
 
 import (
-	"github.com/frolmr/metrics.git/internal/server/config"
-	"github.com/frolmr/metrics.git/internal/server/handlers"
-	"github.com/frolmr/metrics.git/internal/server/logger"
-	"github.com/frolmr/metrics.git/internal/server/middleware"
-	"github.com/frolmr/metrics.git/internal/server/storage"
+	"github.com/frolmr/metrics/internal/server/config"
+	"github.com/frolmr/metrics/internal/server/handlers"
+	"github.com/frolmr/metrics/internal/server/logger"
+	"github.com/frolmr/metrics/internal/server/middleware"
+	"github.com/frolmr/metrics/internal/server/storage"
 	"github.com/go-chi/chi/v5"
 )
 

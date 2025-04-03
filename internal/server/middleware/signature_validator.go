@@ -6,8 +6,8 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/frolmr/metrics.git/internal/domain"
-	"github.com/frolmr/metrics.git/pkg/signer"
+	"github.com/frolmr/metrics/internal/domain"
+	"github.com/frolmr/metrics/pkg/signer"
 )
 
 type (

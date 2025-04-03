@@ -1,0 +1,25 @@
+name: static-analysis
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+
+jobs:
+  staticlint:
+    name: Run Static Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+      - name: Add GOPATH to PATH
+        run: echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+      - name: Install staticlint
+        run: |
+          cd ./cmd/staticlint
+          go install .
+      - name: Run staticlint
+        run: staticlint ./...

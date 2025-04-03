@@ -10,9 +10,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/frolmr/metrics.git/internal/domain"
-	"github.com/frolmr/metrics.git/internal/server/mocks"
-	"github.com/frolmr/metrics.git/internal/server/storage"
+	"github.com/frolmr/metrics/internal/domain"
+	"github.com/frolmr/metrics/internal/server/mocks"
+	"github.com/frolmr/metrics/internal/server/storage"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -39,8 +39,9 @@ func testJSONRequest(t *testing.T, ts *httptest.Server, method,
 	return respBody, resp.StatusCode
 }
 
-func prepareBodySlice(metrics []domain.Metrics) []byte {
-	result, _ := json.Marshal(metrics)
+func prepareBodySlice(t *testing.T, metrics []domain.Metrics) []byte {
+	result, err := json.Marshal(metrics)
+	require.NoError(t, err)
 	return result
 }
 
@@ -74,25 +75,25 @@ func TestUpdateJSONMetricHandler(t *testing.T) {
 		{
 			name:   "success gauge request",
 			method: http.MethodPost,
-			body:   prepareBody(domain.Metrics{ID: "tstGauge", MType: "gauge", Value: &gaugeVal}),
+			body:   prepareBody(t, domain.Metrics{ID: "tstGauge", MType: "gauge", Value: &gaugeVal}),
 			want: want{
 				statusCode:   http.StatusOK,
-				responseBody: prepareBody(domain.Metrics{ID: "tstGauge", MType: "gauge", Value: &gaugeVal}),
+				responseBody: prepareBody(t, domain.Metrics{ID: "tstGauge", MType: "gauge", Value: &gaugeVal}),
 			},
 		},
 		{
 			name:   "success counter request",
 			method: http.MethodPost,
-			body:   prepareBody(domain.Metrics{ID: "tstGauge", MType: "counter", Delta: &counterVal}),
+			body:   prepareBody(t, domain.Metrics{ID: "tstGauge", MType: "counter", Delta: &counterVal}),
 			want: want{
 				statusCode:   http.StatusOK,
-				responseBody: prepareBody(domain.Metrics{ID: "tstGauge", MType: "counter", Delta: &counterVal}),
+				responseBody: prepareBody(t, domain.Metrics{ID: "tstGauge", MType: "counter", Delta: &counterVal}),
 			},
 		},
 		{
 			name:   "fail wrong method request",
 			method: http.MethodGet,
-			body:   prepareBody(domain.Metrics{ID: "tstGauge", MType: "gauge", Value: &gaugeVal}),
+			body:   prepareBody(t, domain.Metrics{ID: "tstGauge", MType: "gauge", Value: &gaugeVal}),
 			want: want{
 				statusCode:   http.StatusMethodNotAllowed,
 				responseBody: []byte(""),
@@ -101,7 +102,7 @@ func TestUpdateJSONMetricHandler(t *testing.T) {
 		{
 			name:   "fail wrong metric type request",
 			method: http.MethodPost,
-			body:   prepareBody(domain.Metrics{ID: "tstGauge", MType: "invalid_type", Value: &gaugeVal}),
+			body:   prepareBody(t, domain.Metrics{ID: "tstGauge", MType: "invalid_type", Value: &gaugeVal}),
 			want: want{
 				statusCode:   http.StatusBadRequest,
 				responseBody: []byte("wrong metric type\n"),
@@ -146,25 +147,25 @@ func TestGetJSONMetricHandler(t *testing.T) {
 		{
 			name:   "success gauge request",
 			method: http.MethodPost,
-			body:   prepareBody(domain.Metrics{ID: "gTest1", MType: "gauge"}),
+			body:   prepareBody(t, domain.Metrics{ID: "gTest1", MType: "gauge"}),
 			want: want{
 				statusCode:   http.StatusOK,
-				responseBody: prepareBody(domain.Metrics{ID: "gTest1", MType: "gauge", Value: &gaugeVal}),
+				responseBody: prepareBody(t, domain.Metrics{ID: "gTest1", MType: "gauge", Value: &gaugeVal}),
 			},
 		},
 		{
 			name:   "success counter request",
 			method: http.MethodPost,
-			body:   prepareBody(domain.Metrics{ID: "cTest1", MType: "counter"}),
+			body:   prepareBody(t, domain.Metrics{ID: "cTest1", MType: "counter"}),
 			want: want{
 				statusCode:   http.StatusOK,
-				responseBody: prepareBody(domain.Metrics{ID: "cTest1", MType: "counter", Delta: &counterVal}),
+				responseBody: prepareBody(t, domain.Metrics{ID: "cTest1", MType: "counter", Delta: &counterVal}),
 			},
 		},
 		{
 			name:   "fail wrong method request",
 			method: http.MethodGet,
-			body:   prepareBody(domain.Metrics{ID: "tstGauge", MType: "gauge"}),
+			body:   prepareBody(t, domain.Metrics{ID: "tstGauge", MType: "gauge"}),
 			want: want{
 				statusCode:   http.StatusMethodNotAllowed,
 				responseBody: []byte(""),
@@ -173,7 +174,7 @@ func TestGetJSONMetricHandler(t *testing.T) {
 		{
 			name:   "fail wrong metric type request",
 			method: http.MethodPost,
-			body:   prepareBody(domain.Metrics{ID: "tstGauge", MType: "invalid_type"}),
+			body:   prepareBody(t, domain.Metrics{ID: "tstGauge", MType: "invalid_type"}),
 			want: want{
 				statusCode:   http.StatusBadRequest,
 				responseBody: []byte("wrong metric type\n"),
@@ -188,9 +189,9 @@ func TestGetJSONMetricHandler(t *testing.T) {
 	}
 }
 
-func prepareBody(metrics domain.Metrics) []byte {
-	result, _ := json.Marshal(metrics)
-
+func prepareBody(t *testing.T, metrics domain.Metrics) []byte {
+	result, err := json.Marshal(metrics)
+	require.NoError(t, err)
 	return result
 }
 
@@ -224,7 +225,7 @@ func TestBulkUpdateJSONMetricHandler(t *testing.T) {
 		{
 			name:   "success bulk update request",
 			method: http.MethodPost,
-			body: prepareBodySlice([]domain.Metrics{
+			body: prepareBodySlice(t, []domain.Metrics{
 				{ID: "tstGauge", MType: "gauge", Value: &gaugeVal},
 				{ID: "tstCounter", MType: "counter", Delta: &counterVal},
 			}),
@@ -245,7 +246,7 @@ func TestBulkUpdateJSONMetricHandler(t *testing.T) {
 		{
 			name:   "fail wrong method request",
 			method: http.MethodGet,
-			body: prepareBodySlice([]domain.Metrics{
+			body: prepareBodySlice(t, []domain.Metrics{
 				{ID: "tstGauge", MType: "gauge", Value: &gaugeVal},
 			}),
 			want: want{
@@ -298,7 +299,7 @@ func TestUpdateJSONMetricHandler_ErrorScenarios(t *testing.T) {
 		{
 			name:   "fail repository error for gauge",
 			method: http.MethodPost,
-			body:   prepareBody(domain.Metrics{ID: "tstGauge", MType: "gauge", Value: &gaugeVal}),
+			body:   prepareBody(t, domain.Metrics{ID: "tstGauge", MType: "gauge", Value: &gaugeVal}),
 			want: want{
 				statusCode:   http.StatusBadRequest,
 				responseBody: []byte("error updating metric\n"),
@@ -351,7 +352,7 @@ func TestGetJSONMetricHandler_ErrorScenarios(t *testing.T) {
 		{
 			name:   "fail metric not found",
 			method: http.MethodPost,
-			body:   prepareBody(domain.Metrics{ID: "nonexistent", MType: "gauge"}),
+			body:   prepareBody(t, domain.Metrics{ID: "nonexistent", MType: "gauge"}),
 			want: want{
 				statusCode:   http.StatusNotFound,
 				responseBody: []byte("metric not found\n"),

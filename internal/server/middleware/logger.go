@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/frolmr/metrics.git/internal/server/logger"
+	"github.com/frolmr/metrics/internal/server/logger"
 )
 
 type (
@@ -21,17 +21,21 @@ type (
 )
 
 func (r *loggingResponseWriter) Write(b []byte) (int, error) {
-	size, err := r.ResponseWriter.Write(b)
-	r.responseData.size += size
 	if !r.wroteHeader {
 		r.WriteHeader(http.StatusOK)
 	}
+	size, err := r.ResponseWriter.Write(b)
+	r.responseData.size += size
 	return size, err
 }
 
 func (r *loggingResponseWriter) WriteHeader(statusCode int) {
+	if r.wroteHeader {
+		return
+	}
 	r.ResponseWriter.WriteHeader(statusCode)
 	r.responseData.status = statusCode
+	r.wroteHeader = true
 }
 
 func WithLog(l *logger.Logger) func(next http.Handler) http.Handler {

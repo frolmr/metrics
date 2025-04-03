@@ -3,7 +3,7 @@ package storage
 import (
 	"testing"
 
-	"github.com/frolmr/metrics.git/internal/domain"
+	"github.com/frolmr/metrics/internal/domain"
 	"github.com/stretchr/testify/assert"
 )
 

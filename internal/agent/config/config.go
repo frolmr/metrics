@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/frolmr/metrics.git/pkg/formatter"
+	"github.com/frolmr/metrics/pkg/formatter"
 )
 
 const (

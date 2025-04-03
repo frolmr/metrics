@@ -13,8 +13,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/frolmr/metrics.git/internal/domain"
-	"github.com/frolmr/metrics.git/pkg/signer"
+	"github.com/frolmr/metrics/internal/domain"
+	"github.com/frolmr/metrics/pkg/signer"
 )
 
 type MetricsReporter interface {
@@ -24,11 +24,19 @@ type MetricsReporter interface {
 func isConnectionRefused(err error) bool {
 	var netErr *net.OpError
 	if errors.As(err, &netErr) {
-		if errors.Is(netErr.Err.(*os.SyscallError), syscall.ECONNREFUSED) {
-			return true
+		var syscallErr *os.SyscallError
+		if errors.As(netErr.Err, &syscallErr) {
+			return errors.Is(syscallErr.Err, syscall.ECONNREFUSED)
 		}
+		return errors.Is(netErr.Err, syscall.ECONNREFUSED)
 	}
-	return false
+
+	var syscallErr *os.SyscallError
+	if errors.As(err, &syscallErr) {
+		return errors.Is(syscallErr.Err, syscall.ECONNREFUSED)
+	}
+
+	return errors.Is(err, syscall.ECONNREFUSED)
 }
 
 // ReportMetrics functions sends http request to server with metrics collected
@@ -81,7 +89,7 @@ func (mc *MetricsCollection) reportMetrics(metrics []domain.Metrics) error {
 		return err
 	}
 
-	cl := mc.ReportClinet.R().
+	cl := mc.ReportClient.R().
 		SetHeader("Content-Type", domain.JSONContentType).
 		SetHeader("Content-Encoding", domain.CompressFormat).
 		SetBody(compressedData).

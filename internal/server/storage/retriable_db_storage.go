@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/frolmr/metrics.git/internal/domain"
+	"github.com/frolmr/metrics/internal/domain"
 	"github.com/jackc/pgx/v5/pgconn"
 )
 

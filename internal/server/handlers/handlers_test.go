@@ -8,8 +8,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/frolmr/metrics.git/internal/server/mocks"
-	"github.com/frolmr/metrics.git/internal/server/storage"
+	"github.com/frolmr/metrics/internal/server/mocks"
+	"github.com/frolmr/metrics/internal/server/storage"
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"

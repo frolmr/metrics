@@ -6,7 +6,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/frolmr/metrics.git/internal/domain"
+	"github.com/frolmr/metrics/internal/domain"
 )
 
 // UpdateMetricJSON updates a metric based on the provided JSON payload.
@@ -36,12 +36,12 @@ func (rh *RequestHandler) UpdateMetricJSON() http.HandlerFunc {
 		}
 
 		if metricsRequest.Delta != nil {
-			if err := rh.repo.UpdateCounterMetric(metricsRequest.ID, *metricsRequest.Delta); err != nil {
+			if updateErr := rh.repo.UpdateCounterMetric(metricsRequest.ID, *metricsRequest.Delta); updateErr != nil {
 				http.Error(res, "error updating metric", http.StatusBadRequest)
 				return
 			}
 		} else {
-			if err := rh.repo.UpdateGaugeMetric(metricsRequest.ID, *metricsRequest.Value); err != nil {
+			if updateErr := rh.repo.UpdateGaugeMetric(metricsRequest.ID, *metricsRequest.Value); updateErr != nil {
 				http.Error(res, "error updating metric", http.StatusBadRequest)
 				return
 			}
