@@ -48,8 +48,8 @@ func main() {
 				IdleTimeout:  5 * time.Second,
 			}
 
-			if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-				log.Fatalf("Failed to start pprof server: %v", err)
+			if serverErr := server.ListenAndServe(); serverErr != nil && serverErr != http.ErrServerClosed {
+				log.Fatalf("Failed to start pprof server: %v", serverErr)
 			}
 		}()
 	}
@@ -91,8 +91,8 @@ func setupDB(cfg *config.Config) (*sql.DB, error) {
 	}
 
 	m := migrator.NewMigrator(db)
-	if err := m.RunMigrations(); err != nil {
-		return nil, err
+	if migrationErr := m.RunMigrations(); migrationErr != nil {
+		return nil, migrationErr
 	}
 	return db, err
 }
