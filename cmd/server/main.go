@@ -24,14 +24,23 @@ import (
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 
-	"github.com/frolmr/metrics.git/internal/server/config"
-	"github.com/frolmr/metrics.git/internal/server/controller"
-	"github.com/frolmr/metrics.git/internal/server/db/migrator"
-	"github.com/frolmr/metrics.git/internal/server/logger"
-	"github.com/frolmr/metrics.git/internal/server/storage"
+	"github.com/frolmr/metrics/internal/server/config"
+	"github.com/frolmr/metrics/internal/server/controller"
+	"github.com/frolmr/metrics/internal/server/db/migrator"
+	"github.com/frolmr/metrics/internal/server/logger"
+	"github.com/frolmr/metrics/internal/server/storage"
+	"github.com/frolmr/metrics/pkg/buildinfo"
+)
+
+var (
+	buildVersion string
+	buildDate    string
+	buildCommit  string
 )
 
 func main() {
+	buildinfo.PrintBuildInfo(buildVersion, buildDate, buildCommit)
+
 	cfg, err := config.NewConfig()
 	if err != nil {
 		log.Panic(err)
@@ -48,8 +57,8 @@ func main() {
 				IdleTimeout:  5 * time.Second,
 			}
 
-			if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-				log.Fatalf("Failed to start pprof server: %v", err)
+			if serverErr := server.ListenAndServe(); serverErr != nil && serverErr != http.ErrServerClosed {
+				log.Fatalf("Failed to start pprof server: %v", serverErr)
 			}
 		}()
 	}
@@ -91,8 +100,8 @@ func setupDB(cfg *config.Config) (*sql.DB, error) {
 	}
 
 	m := migrator.NewMigrator(db)
-	if err := m.RunMigrations(); err != nil {
-		return nil, err
+	if migrationErr := m.RunMigrations(); migrationErr != nil {
+		return nil, migrationErr
 	}
 	return db, err
 }

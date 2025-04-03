@@ -4,9 +4,9 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/frolmr/metrics.git/internal/domain"
-	"github.com/frolmr/metrics.git/internal/server/storage"
-	"github.com/frolmr/metrics.git/pkg/formatter"
+	"github.com/frolmr/metrics/internal/domain"
+	"github.com/frolmr/metrics/internal/server/storage"
+	"github.com/frolmr/metrics/pkg/formatter"
 	"github.com/go-chi/chi/v5"
 )
 

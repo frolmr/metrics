@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/frolmr/metrics.git/internal/domain"
-	"github.com/frolmr/metrics.git/internal/server/gzipper"
+	"github.com/frolmr/metrics/internal/domain"
+	"github.com/frolmr/metrics/internal/server/gzipper"
 )
 
 func Compressor(next http.Handler) http.Handler {

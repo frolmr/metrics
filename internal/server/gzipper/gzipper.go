@@ -5,7 +5,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/frolmr/metrics.git/internal/domain"
+	"github.com/frolmr/metrics/internal/domain"
 )
 
 type compressWriter struct {

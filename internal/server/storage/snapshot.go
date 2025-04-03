@@ -5,7 +5,7 @@ import (
 	"io"
 	"log"
 
-	"github.com/frolmr/metrics.git/internal/domain"
+	"github.com/frolmr/metrics/internal/domain"
 )
 
 type Snapshooter interface {

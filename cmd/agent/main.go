@@ -10,12 +10,21 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/frolmr/metrics.git/internal/agent/config"
-	"github.com/frolmr/metrics.git/internal/agent/metrics"
+	"github.com/frolmr/metrics/internal/agent/config"
+	"github.com/frolmr/metrics/internal/agent/metrics"
+	"github.com/frolmr/metrics/pkg/buildinfo"
 	"github.com/go-resty/resty/v2"
 )
 
+var (
+	buildVersion string
+	buildDate    string
+	buildCommit  string
+)
+
 func main() {
+	buildinfo.PrintBuildInfo(buildVersion, buildDate, buildCommit)
+
 	cfg, err := config.NewConfig()
 	if err != nil {
 		log.Panic(err)

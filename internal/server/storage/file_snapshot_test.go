@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/frolmr/metrics.git/internal/server/mocks"
+	"github.com/frolmr/metrics/internal/server/mocks"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )
@@ -24,8 +24,8 @@ func TestSaveData_Success(t *testing.T) {
 	mockSnap.EXPECT().
 		SaveToSnapshot(gomock.Any()).
 		DoAndReturn(func(writer *bufio.Writer) error {
-			_, err := writer.WriteString("test data")
-			return err
+			_, writerErr := writer.WriteString("test data")
+			return writerErr
 		}).
 		Times(1)
 
@@ -78,8 +78,8 @@ func TestRestoreData_Success(t *testing.T) {
 	mockSnap.EXPECT().
 		RestoreFromSnapshot(gomock.Any()).
 		DoAndReturn(func(reader *bufio.Reader) error {
-			data, err := reader.ReadString('\n')
-			assert.NoError(t, err)
+			data, readerErr := reader.ReadString('\n')
+			assert.NoError(t, readerErr)
 			assert.Equal(t, testData, data)
 			return nil
 		}).

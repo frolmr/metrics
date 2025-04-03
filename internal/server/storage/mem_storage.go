@@ -3,7 +3,7 @@ package storage
 import (
 	"errors"
 
-	"github.com/frolmr/metrics.git/internal/domain"
+	"github.com/frolmr/metrics/internal/domain"
 )
 
 type MemStorage struct {

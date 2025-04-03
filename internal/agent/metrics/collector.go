@@ -59,21 +59,30 @@ func (mc *MetricsCollection) CollectMetrics() (counterMetrics map[string]int64, 
 	return mc.CounterMetrics, mc.GaugeMetrics
 }
 
+// NOTE: special for test! dunno if it's ok
+var (
+	memVirtualMemory = mem.VirtualMemory
+	cpuPercent       = cpu.Percent
+)
+
 // CollectAdditionalMetrics functions collects additional metrics from host.
 func (mc *MetricsCollection) CollectAdditionalMetrics() {
-	m, _ := mem.VirtualMemory()
-
-	mc.GaugeMetrics["TotalMemory"] = float64(m.Total)
-	mc.GaugeMetrics["FreeMemory"] = float64(m.Free)
-
-	c, err := cpu.Percent(0, true)
+	m, err := memVirtualMemory()
 	if err != nil {
-		log.Println("cant get cpu metric")
+		log.Println("cant get RAM metric")
+	} else {
+		mc.GaugeMetrics["TotalMemory"] = float64(m.Total)
+		mc.GaugeMetrics["FreeMemory"] = float64(m.Free)
 	}
 
-	for i, val := range c {
-		key := fmt.Sprintf("CPUutilization%d", i)
-		mc.GaugeMetrics[key] = float64(val)
+	c, err := cpuPercent(0, true)
+	if err != nil {
+		log.Println("cant get cpu metric")
+	} else {
+		for i, val := range c {
+			key := fmt.Sprintf("CPUutilization%d", i)
+			mc.GaugeMetrics[key] = float64(val)
+		}
 	}
 }
 

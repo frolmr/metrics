@@ -12,7 +12,7 @@ package mocks
 import (
 	reflect "reflect"
 
-	domain "github.com/frolmr/metrics.git/internal/domain"
+	domain "github.com/frolmr/metrics/internal/domain"
 	gomock "go.uber.org/mock/gomock"
 )
 

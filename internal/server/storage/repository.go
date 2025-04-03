@@ -1,7 +1,7 @@
 package storage
 
 import (
-	"github.com/frolmr/metrics.git/internal/domain"
+	"github.com/frolmr/metrics/internal/domain"
 )
 
 type Repository interface {
