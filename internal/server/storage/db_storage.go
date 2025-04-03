@@ -202,8 +202,7 @@ func getMetrics[K string, V Number](stmt *sql.Stmt, m map[string]V) map[string]V
 		value V
 	)
 	for rows.Next() {
-		err := rows.Scan(&name, &value)
-		if err != nil {
+		if scanErr := rows.Scan(&name, &value); scanErr != nil {
 			return nil
 		}
 		m[name] = value
