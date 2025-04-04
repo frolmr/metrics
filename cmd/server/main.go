@@ -29,9 +29,18 @@ import (
 	"github.com/frolmr/metrics.git/internal/server/db/migrator"
 	"github.com/frolmr/metrics.git/internal/server/logger"
 	"github.com/frolmr/metrics.git/internal/server/storage"
+	"github.com/frolmr/metrics.git/pkg/buildinfo"
+)
+
+var (
+	buildVersion string
+	buildDate    string
+	buildCommit  string
 )
 
 func main() {
+	buildinfo.PrintBuildInfo(buildVersion, buildDate, buildCommit)
+
 	cfg, err := config.NewConfig()
 	if err != nil {
 		log.Panic(err)
