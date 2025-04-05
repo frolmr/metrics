@@ -1,6 +1,6 @@
 package buildinfo
 
-import "log"
+import "fmt"
 
 func PrintBuildInfo(version, date, commit string) {
 	if version == "" {
@@ -13,7 +13,7 @@ func PrintBuildInfo(version, date, commit string) {
 		commit = "N/A"
 	}
 
-	log.Printf("Build version: %s\n", version)
-	log.Printf("Build date: %s\n", date)
-	log.Printf("Build commit: %s\n", commit)
+	fmt.Printf("Build version: %s\n", version)
+	fmt.Printf("Build date: %s\n", date)
+	fmt.Printf("Build commit: %s\n", commit)
 }
