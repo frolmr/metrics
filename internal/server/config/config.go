@@ -2,6 +2,10 @@
 package config
 
 import (
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
+	"errors"
 	"flag"
 	"os"
 	"strconv"
@@ -18,7 +22,10 @@ const (
 	restoreEnv         = "RESTORE"
 	databaseDsnEnv     = "DATABASE_DSN"
 	keyEnv             = "KEY"
+	cryptoKeyEnvName   = "CRYPTO_KEY"
+)
 
+const (
 	defaultScheme          = "http"
 	defaultAddress         = "localhost:8080"
 	defaultStoreInterval   = 300
@@ -26,7 +33,7 @@ const (
 	defaultRestore         = false
 )
 
-// Config atructure to store server configuration.
+// Config structure to store server configuration.
 type Config struct {
 	Scheme      string
 	HTTPAddress string
@@ -36,8 +43,8 @@ type Config struct {
 	FileStoragePath string
 	Restore         bool
 
-	Key string
-
+	Key       string
+	CryptoKey *rsa.PrivateKey
 	Profiling bool
 }
 
@@ -51,6 +58,7 @@ func NewConfig() (*Config, error) {
 		fileStoragePath   string
 		restore           bool
 		key               string
+		cryptoKeyPath     string
 		profile           bool
 	)
 
@@ -61,6 +69,7 @@ func NewConfig() (*Config, error) {
 	flag.StringVar(&fileStoragePath, "f", defaultFileStoragePath, "snapshot file path")
 	flag.BoolVar(&restore, "r", defaultRestore, "bool flag for set snapshoting")
 	flag.StringVar(&key, "k", key, "encryption key")
+	flag.StringVar(&cryptoKeyPath, "crypto-key", "", "path to private key for decryption")
 	flag.BoolVar(&profile, "p", profile, "bool flag for app profiling")
 	flag.Parse()
 
@@ -100,6 +109,15 @@ func NewConfig() (*Config, error) {
 		key = keyEnv
 	}
 
+	if cryptoKeyEnv := os.Getenv(cryptoKeyEnvName); cryptoKeyEnv != "" {
+		cryptoKeyPath = cryptoKeyEnv
+	}
+
+	privateKey, err := loadPrivateKey(cryptoKeyPath)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Config{
 		Scheme:          serverScheme,
 		HTTPAddress:     serverHTTPAddress,
@@ -108,6 +126,34 @@ func NewConfig() (*Config, error) {
 		FileStoragePath: fileStoragePath,
 		Restore:         restore,
 		Key:             key,
+		CryptoKey:       privateKey,
 		Profiling:       profile,
 	}, nil
+}
+
+func loadPrivateKey(path string) (*rsa.PrivateKey, error) {
+	if path == "" {
+		return nil, nil
+	}
+
+	keyBytes, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	block, _ := pem.Decode(keyBytes)
+	if block == nil {
+		return nil, errors.New("failed to parse PEM block containing the private key")
+	}
+
+	priv, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+	if err != nil {
+		key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+		if err != nil {
+			return nil, err
+		}
+		return key.(*rsa.PrivateKey), nil
+	}
+
+	return priv, nil
 }

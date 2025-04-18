@@ -4,9 +4,12 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net"
 	"os"
@@ -83,7 +86,13 @@ func (mc *MetricsCollection) reportMetrics(metrics []domain.Metrics) error {
 		return err
 	}
 
-	compressedData, err := mc.compressPayload(metricsJSON)
+	encryptedPayload, err := mc.encryptPayload(metricsJSON)
+	if err != nil {
+		log.Println("encryption failure ", err.Error())
+		return err
+	}
+
+	compressedData, err := mc.compressPayload(encryptedPayload)
 	if err != nil {
 		log.Println("compression failure ", err.Error())
 		return err
@@ -115,14 +124,50 @@ func (mc *MetricsCollection) reportMetrics(metrics []domain.Metrics) error {
 	return nil
 }
 
-func (mc *MetricsCollection) compressPayload(metricsJSON []byte) (*bytes.Buffer, error) {
+func (mc *MetricsCollection) compressPayload(payload []byte) (*bytes.Buffer, error) {
 	buf := bytes.NewBuffer(nil)
 	zb := gzip.NewWriter(buf)
-	if _, err := zb.Write(metricsJSON); err != nil {
+	if _, err := zb.Write(payload); err != nil {
 		return nil, err
 	}
 
 	zb.Close()
 
 	return buf, nil
+}
+
+func (mc *MetricsCollection) encryptPayload(payload []byte) ([]byte, error) {
+	var encryptedPayload []byte
+	if mc.Config.CryptoKey != nil {
+		// Calculate maximum chunk size (for 2048-bit key: 245 bytes)
+		maxChunkSize := mc.Config.CryptoKey.Size() - 11
+
+		// Split payload into chunks
+		chunks := chunkData(payload, maxChunkSize)
+
+		// Encrypt each chunk
+		for _, chunk := range chunks {
+			encryptedChunk, err := rsa.EncryptPKCS1v15(rand.Reader, mc.Config.CryptoKey, chunk)
+			if err != nil {
+				return nil, fmt.Errorf("RSA encryption failed: %w", err)
+			}
+			encryptedPayload = append(encryptedPayload, encryptedChunk...)
+		}
+	} else {
+		encryptedPayload = payload
+	}
+
+	return encryptedPayload, nil
+}
+
+func chunkData(data []byte, chunkSize int) [][]byte {
+	var chunks [][]byte
+	for i := 0; i < len(data); i += chunkSize {
+		end := i + chunkSize
+		if end > len(data) {
+			end = len(data)
+		}
+		chunks = append(chunks, data[i:end])
+	}
+	return chunks
 }

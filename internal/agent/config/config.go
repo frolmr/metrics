@@ -2,6 +2,10 @@
 package config
 
 import (
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
+	"errors"
 	"flag"
 	"os"
 	"strconv"
@@ -17,6 +21,7 @@ const (
 	pollIntervalEnvName   = "POLL_INTERVAL"
 	keyEnv                = "KEY"
 	rateLimitEnvName      = "RATE_LIMIT"
+	cryptoKeyEnvName      = "CRYPTO_KEY"
 
 	defaultScheme            = "http"
 	defaultAddress           = "localhost:8080"
@@ -36,6 +41,8 @@ type Config struct {
 	Key string
 
 	RateLimit int
+
+	CryptoKey *rsa.PublicKey
 }
 
 // NewConfig setups agents config: read flags and env variables.
@@ -47,6 +54,7 @@ func NewConfig() (*Config, error) {
 		pollIntervalSec   int
 		key               string
 		rateLimit         int
+		cryptoKeyPath     string
 	)
 
 	flag.StringVar(&serverScheme, "s", defaultScheme, "server scheme: http or https")
@@ -55,6 +63,7 @@ func NewConfig() (*Config, error) {
 	flag.IntVar(&pollIntervalSec, "p", defaultPollIntervalSec, "poll interval")
 	flag.StringVar(&key, "k", key, "encryption key")
 	flag.IntVar(&rateLimit, "l", defaultRateLimit, "requests to server rate limit")
+	flag.StringVar(&cryptoKeyPath, "crypto-key", key, "public crypto key path")
 	flag.Parse()
 
 	if serverSchemeEnv := os.Getenv(schemeEnvName); serverSchemeEnv != "" {
@@ -89,6 +98,15 @@ func NewConfig() (*Config, error) {
 		rateLimit = rateLimitEnv
 	}
 
+	if cryptoKeyEnv := os.Getenv(cryptoKeyEnvName); cryptoKeyEnv != "" {
+		cryptoKeyPath = cryptoKeyEnv
+	}
+
+	cryptoKey, err := loadPublicKey(cryptoKeyPath)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Config{
 		Scheme:         serverScheme,
 		HTTPAddress:    serverHTTPAddress,
@@ -96,5 +114,29 @@ func NewConfig() (*Config, error) {
 		PollInterval:   time.Duration(pollIntervalSec) * time.Second,
 		Key:            key,
 		RateLimit:      rateLimit,
+		CryptoKey:      cryptoKey,
 	}, nil
+}
+
+func loadPublicKey(publicKeyPath string) (*rsa.PublicKey, error) {
+	if publicKeyPath == "" {
+		return nil, nil
+	}
+
+	keyBytes, err := os.ReadFile(publicKeyPath)
+	if err != nil {
+		return nil, err
+	}
+
+	block, _ := pem.Decode(keyBytes)
+	if block == nil {
+		return nil, errors.New("failed to parse PEM block containing the public key")
+	}
+
+	pub, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return pub.(*rsa.PublicKey), nil
 }

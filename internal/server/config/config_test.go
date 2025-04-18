@@ -1,12 +1,17 @@
 package config
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"flag"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestParseHostFlags(t *testing.T) {
@@ -337,5 +342,194 @@ func TestParseKeyFlag(t *testing.T) {
 		os.Clearenv()
 
 		assert.Equal(t, test.want.key, config.Key)
+	}
+}
+
+func TestCryptoKeyConfig(t *testing.T) {
+	privKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+
+	privKeyPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(privKey),
+	})
+
+	tmpFile, err := os.CreateTemp("", "private_key_*.pem")
+	require.NoError(t, err)
+	defer os.Remove(tmpFile.Name())
+
+	_, err = tmpFile.Write(privKeyPEM)
+	require.NoError(t, err)
+	require.NoError(t, tmpFile.Close())
+
+	type testCase struct {
+		name          string
+		args          []string
+		envVars       map[string]string
+		wantKeyLoaded bool
+		wantErr       bool
+		wantKeyExists bool
+	}
+
+	tests := []testCase{
+		{
+			name:          "flag - no key specified",
+			args:          []string{},
+			wantKeyLoaded: false,
+			wantErr:       false,
+			wantKeyExists: false,
+		},
+		{
+			name:          "flag - valid key path",
+			args:          []string{"-crypto-key", tmpFile.Name()},
+			wantKeyLoaded: true,
+			wantErr:       false,
+			wantKeyExists: true,
+		},
+		{
+			name:          "flag - invalid key path",
+			args:          []string{"-crypto-key", "nonexistent.pem"},
+			wantKeyLoaded: false,
+			wantErr:       true,
+			wantKeyExists: false,
+		},
+		{
+			name:          "env - no key specified",
+			envVars:       map[string]string{},
+			wantKeyLoaded: false,
+			wantErr:       false,
+			wantKeyExists: false,
+		},
+		{
+			name:          "env - valid key path",
+			envVars:       map[string]string{"CRYPTO_KEY": tmpFile.Name()},
+			wantKeyLoaded: true,
+			wantErr:       false,
+			wantKeyExists: true,
+		},
+		{
+			name:          "env - invalid key path",
+			envVars:       map[string]string{"CRYPTO_KEY": "nonexistent.pem"},
+			wantKeyLoaded: false,
+			wantErr:       true,
+			wantKeyExists: false,
+		},
+		{
+			name:          "flag and env - env overrides flag with valid path",
+			args:          []string{"-crypto-key", "nonexistent.pem"},
+			envVars:       map[string]string{"CRYPTO_KEY": tmpFile.Name()},
+			wantKeyLoaded: true,
+			wantErr:       false,
+			wantKeyExists: true,
+		},
+		{
+			name:          "flag and env - env overrides flag with invalid path",
+			args:          []string{"-crypto-key", tmpFile.Name()},
+			envVars:       map[string]string{"CRYPTO_KEY": "nonexistent.pem"},
+			wantKeyLoaded: false,
+			wantErr:       true,
+			wantKeyExists: false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			for k, v := range test.envVars {
+				os.Setenv(k, v)
+			}
+			defer func() {
+				for k := range test.envVars {
+					os.Unsetenv(k)
+				}
+			}()
+
+			os.Args = append([]string{"cmd"}, test.args...)
+			flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+
+			config, err := NewConfig()
+
+			if test.wantErr {
+				require.Error(t, err, "Expected error but got none")
+				return
+			}
+			require.NoError(t, err, "Unexpected error")
+
+			if test.wantKeyExists {
+				require.NotNil(t, config.CryptoKey, "Expected crypto key to be loaded")
+			} else {
+				require.Nil(t, config.CryptoKey, "Expected no crypto key to be loaded")
+			}
+		})
+	}
+}
+
+func TestLoadPrivateKey(t *testing.T) {
+	privKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+
+	privKeyPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(privKey),
+	})
+
+	validTmpFile, err := os.CreateTemp("", "valid_private_key_*.pem")
+	require.NoError(t, err)
+	defer os.Remove(validTmpFile.Name())
+
+	_, err = validTmpFile.Write(privKeyPEM)
+	require.NoError(t, err)
+	require.NoError(t, validTmpFile.Close())
+
+	invalidTmpFile, err := os.CreateTemp("", "invalid_private_key_*.pem")
+	require.NoError(t, err)
+	defer os.Remove(invalidTmpFile.Name())
+
+	_, err = invalidTmpFile.Write([]byte("invalid key data"))
+	require.NoError(t, err)
+	require.NoError(t, invalidTmpFile.Close())
+
+	tests := []struct {
+		name    string
+		keyPath string
+		wantKey bool
+		wantErr bool
+	}{
+		{
+			name:    "empty path",
+			keyPath: "",
+			wantKey: false,
+			wantErr: false,
+		},
+		{
+			name:    "valid key",
+			keyPath: validTmpFile.Name(),
+			wantKey: true,
+			wantErr: false,
+		},
+		{
+			name:    "invalid key format",
+			keyPath: invalidTmpFile.Name(),
+			wantKey: false,
+			wantErr: true,
+		},
+		{
+			name:    "nonexistent file",
+			keyPath: "nonexistent.pem",
+			wantKey: false,
+			wantErr: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got, err := loadPrivateKey(test.keyPath)
+			if (err != nil) != test.wantErr {
+				t.Errorf("loadPrivateKey() error = %v, wantErr %v", err, test.wantErr)
+				return
+			}
+			if (got != nil) != test.wantKey {
+				t.Errorf("loadPrivateKey() got key = %v, want key %v", got != nil, test.wantKey)
+			}
+		})
 	}
 }
