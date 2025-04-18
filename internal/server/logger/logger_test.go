@@ -1,5 +1,6 @@
 package logger
 
+//nolint:goimports // No clue why linter is diappointed
 import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"

@@ -8,11 +8,13 @@ import (
 
 	"github.com/frolmr/metrics/internal/server/logger"
 	"github.com/go-chi/chi/v5"
+	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest/observer"
 )
 
+//nolint:gocyclo // Not so important for tests
 func TestLoggingMiddleware(t *testing.T) {
 	core, recorded := observer.New(zapcore.InfoLevel)
 	mockLogger := &logger.Logger{
@@ -23,11 +25,13 @@ func TestLoggingMiddleware(t *testing.T) {
 	r.Use(WithLog(mockLogger))
 	r.Get("/test", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("test response"))
+		_, err := w.Write([]byte("test response"))
+		assert.NoError(t, err)
 	})
 	r.Get("/error", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("error response"))
+		_, err := w.Write([]byte("error response"))
+		assert.NoError(t, err)
 	})
 
 	tests := []struct {

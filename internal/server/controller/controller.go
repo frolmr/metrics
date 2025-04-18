@@ -3,6 +3,7 @@ package controller
 
 import (
 	"github.com/frolmr/metrics/internal/server/config"
+	"github.com/frolmr/metrics/internal/server/decryptor"
 	"github.com/frolmr/metrics/internal/server/handlers"
 	"github.com/frolmr/metrics/internal/server/logger"
 	"github.com/frolmr/metrics/internal/server/middleware"
@@ -29,6 +30,7 @@ func (c *Controller) SetupHandlers(stor storage.Repository) chi.Router {
 
 	r.Use(middleware.Compressor)
 	r.Use(middleware.WithLog(c.logger))
+	r.Use(middleware.WithDecrypt(decryptor.NewDecryptor(c.config.CryptoKey)))
 	r.Use(middleware.WithSignature(c.config.Key))
 
 	rh := handlers.NewRequestHandler(stor)

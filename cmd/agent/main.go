@@ -2,6 +2,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
 	"os/signal"
@@ -30,6 +31,9 @@ func main() {
 		log.Panic(err)
 	}
 
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
+	defer stop()
+
 	client := resty.New()
 	mtrcs := metrics.NewMetricsCollection(client, cfg)
 
@@ -50,36 +54,23 @@ func main() {
 	defer close(doneCh)
 
 	pollTicker := time.NewTicker(cfg.PollInterval)
-	go func() {
-		for {
-			select {
-			case <-pollTicker.C:
-				go mtrcs.CollectMetrics()
-				go mtrcs.CollectAdditionalMetrics()
-			case <-doneCh:
-				return
-			}
-		}
-	}()
+	defer pollTicker.Stop()
 
 	reportTicker := time.NewTicker(cfg.ReportInterval)
-	go func() {
-		for {
-			select {
-			case <-reportTicker.C:
-				jobsCh <- *mtrcs
-			case <-doneCh:
-				return
-			}
-		}
-	}()
+	defer reportTicker.Stop()
 
-	termCh := make(chan os.Signal, 1)
-	signal.Notify(termCh, syscall.SIGINT)
-	<-termCh
-	pollTicker.Stop()
-	reportTicker.Stop()
-	doneCh <- struct{}{}
-	close(jobsCh)
-	wg.Wait()
+	for {
+		select {
+		case <-pollTicker.C:
+			go mtrcs.CollectMetrics()
+			go mtrcs.CollectAdditionalMetrics()
+		case <-reportTicker.C:
+			jobsCh <- *mtrcs
+		case <-ctx.Done():
+			close(jobsCh)
+			wg.Wait()
+			log.Println("Agent shutdown gracefully")
+			return
+		}
+	}
 }
