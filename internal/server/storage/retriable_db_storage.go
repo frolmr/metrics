@@ -125,10 +125,6 @@ func (rs RetriableStorage) GetGaugeMetrics() (res map[string]float64, err error)
 }
 
 func (rs RetriableStorage) isRetriable(err error) bool {
-	switch {
-	case errors.Is(err, &pgconn.ConnectError{}):
-		return true
-	default:
-		return false
-	}
+	var connErr *pgconn.ConnectError
+	return errors.As(err, &connErr)
 }

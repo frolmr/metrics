@@ -15,9 +15,13 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	_ "net/http/pprof" //nolint:gosec //need for the task
@@ -30,6 +34,10 @@ import (
 	"github.com/frolmr/metrics/internal/server/logger"
 	"github.com/frolmr/metrics/internal/server/storage"
 	"github.com/frolmr/metrics/pkg/buildinfo"
+)
+
+const (
+	shutdownTimeout = 10 * time.Second
 )
 
 var (
@@ -46,19 +54,20 @@ func main() {
 		log.Panic(err)
 	}
 
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
+	defer stop()
+
 	if cfg.Profiling {
 		go func() {
 			log.Println("Starting pprof server on :6060...")
-
-			server := &http.Server{
+			pprofServer := &http.Server{
 				Addr:         "localhost:6060",
 				ReadTimeout:  3 * time.Second,
 				WriteTimeout: 3 * time.Second,
 				IdleTimeout:  5 * time.Second,
 			}
-
-			if serverErr := server.ListenAndServe(); serverErr != nil && serverErr != http.ErrServerClosed {
-				log.Fatalf("Failed to start pprof server: %v", serverErr)
+			if pprofServerErr := pprofServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				log.Printf("pprof server error: %v", pprofServerErr)
 			}
 		}()
 	}
@@ -71,13 +80,11 @@ func main() {
 	ctrl := controller.NewController(l, cfg)
 
 	var server *http.Server
-
 	if cfg.DatabaseDSN != "" {
 		db, err := setupDB(cfg)
 		if err != nil {
-			log.Panic("could not setup to DB: ", err.Error())
+			log.Panic("could not setup DB: ", err.Error())
 		}
-
 		defer db.Close()
 
 		retriableStor := storage.NewRetriableStorage(storage.NewDBStorage(db))
@@ -88,8 +95,26 @@ func main() {
 		setupSnapshots(cfg, memstor)
 	}
 
-	if err := server.ListenAndServe(); err != nil {
+	serverErr := make(chan error, 1)
+	go func() {
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			serverErr <- err
+		}
+	}()
+
+	select {
+	case err := <-serverErr:
 		log.Panic(err)
+	case <-ctx.Done():
+		l.SugaredLogger.Info("shutting down server gracefully...")
+
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+		defer cancel()
+
+		if err := server.Shutdown(shutdownCtx); err != nil {
+			l.SugaredLogger.Error("server shutdown failed", "error", err)
+		}
+		l.SugaredLogger.Info("server exited properly")
 	}
 }
 
