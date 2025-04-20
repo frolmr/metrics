@@ -7,6 +7,7 @@ import (
 	"encoding/pem"
 	"flag"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -530,6 +531,102 @@ func TestLoadPrivateKey(t *testing.T) {
 			if (got != nil) != test.wantKey {
 				t.Errorf("loadPrivateKey() got key = %v, want key %v", got != nil, test.wantKey)
 			}
+		})
+	}
+}
+
+func TestServerConfigPriority(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	configContent := `{
+		"address": "json:8080",
+		"store_interval": 10,
+		"store_file": "/json/store.db",
+		"restore": true,
+		"database_dsn": "json_dsn",
+		"key": "json_key"
+	}`
+	configPath := filepath.Join(tmpDir, "config.json")
+	err := os.WriteFile(configPath, []byte(configContent), 0644)
+	require.NoError(t, err)
+
+	tests := []struct {
+		name       string
+		args       []string
+		envVars    map[string]string
+		configFile string
+		expected   Config
+	}{
+		{
+			name:       "json config only",
+			configFile: configPath,
+			expected: Config{
+				HTTPAddress:     "json:8080",
+				StoreInterval:   10 * time.Second,
+				FileStoragePath: "/json/store.db",
+				Restore:         true,
+				DatabaseDSN:     "json_dsn",
+				Key:             "json_key",
+			},
+		},
+		{
+			name:       "keys overrides json",
+			configFile: configPath,
+			args:       []string{"-a", "flag:8080", "-i", "15", "-k", "flag_key"},
+			expected: Config{
+				HTTPAddress:     "flag:8080",
+				StoreInterval:   15 * time.Second,
+				FileStoragePath: "/json/store.db",
+				Restore:         true,
+				DatabaseDSN:     "json_dsn",
+				Key:             "flag_key",
+			},
+		},
+		{
+			name:       "envs override all",
+			configFile: configPath,
+			envVars: map[string]string{
+				"ADDRESS":           "env:8080",
+				"STORE_INTERVAL":    "60",
+				"FILE_STORAGE_PATH": "/env/store.db",
+				"KEY":               "env_key",
+			},
+			args: []string{"-a", "flag:8080", "-i", "15", "-k", "flag_key"},
+			expected: Config{
+				HTTPAddress:     "env:8080",
+				StoreInterval:   60 * time.Second,
+				FileStoragePath: "/env/store.db",
+				Restore:         true,
+				DatabaseDSN:     "json_dsn",
+				Key:             "env_key",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for k, v := range tt.envVars {
+				os.Setenv(k, v)
+			}
+			defer func() {
+				for k := range tt.envVars {
+					os.Unsetenv(k)
+				}
+			}()
+
+			args := append([]string{"-config", tt.configFile}, tt.args...)
+			os.Args = append([]string{"cmd"}, args...)
+			flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+
+			cfg, err := NewConfig()
+			require.NoError(t, err)
+
+			assert.Equal(t, tt.expected.HTTPAddress, cfg.HTTPAddress)
+			assert.Equal(t, tt.expected.StoreInterval, cfg.StoreInterval)
+			assert.Equal(t, tt.expected.FileStoragePath, cfg.FileStoragePath)
+			assert.Equal(t, tt.expected.Restore, cfg.Restore)
+			assert.Equal(t, tt.expected.DatabaseDSN, cfg.DatabaseDSN)
+			assert.Equal(t, tt.expected.Key, cfg.Key)
 		})
 	}
 }
