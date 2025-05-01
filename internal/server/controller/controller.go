@@ -28,6 +28,7 @@ func NewController(lgr *logger.Logger, cfg *config.Config) *Controller {
 func (c *Controller) SetupHandlers(stor storage.Repository) chi.Router {
 	r := chi.NewRouter()
 
+	r.Use(middleware.WithTrustedSubnet(c.config.TrustedSubnet))
 	r.Use(middleware.Compressor)
 	r.Use(middleware.WithLog(c.logger))
 	r.Use(middleware.WithDecrypt(decryptor.NewDecryptor(c.config.CryptoKey)))

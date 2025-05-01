@@ -98,9 +98,16 @@ func (mc *MetricsCollection) reportMetrics(metrics []domain.Metrics) error {
 		return err
 	}
 
+	hostIP, err := getOutboundIP()
+	if err != nil {
+		log.Println("failed to get host IP:", err)
+		hostIP = "unknown"
+	}
+
 	cl := mc.ReportClient.R().
 		SetHeader("Content-Type", domain.JSONContentType).
 		SetHeader("Content-Encoding", domain.CompressFormat).
+		SetHeader("X-Real-IP", hostIP).
 		SetBody(compressedData).
 		SetPathParam("serverScheme", mc.Config.Scheme).
 		SetPathParam("serverHost", mc.Config.HTTPAddress)
@@ -158,6 +165,17 @@ func (mc *MetricsCollection) encryptPayload(payload []byte) ([]byte, error) {
 	}
 
 	return encryptedPayload, nil
+}
+
+func getOutboundIP() (string, error) {
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err != nil {
+		return "", err
+	}
+	defer conn.Close()
+
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+	return localAddr.IP.String(), nil
 }
 
 func chunkData(data []byte, chunkSize int) [][]byte {
