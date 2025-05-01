@@ -13,8 +13,8 @@ import (
 
 	"github.com/frolmr/metrics/internal/agent/config"
 	"github.com/frolmr/metrics/internal/agent/metrics"
+	"github.com/frolmr/metrics/internal/agent/reporter"
 	"github.com/frolmr/metrics/pkg/buildinfo"
-	"github.com/go-resty/resty/v2"
 )
 
 var (
@@ -34,8 +34,22 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
 	defer stop()
 
-	client := resty.New()
-	mtrcs := metrics.NewMetricsCollection(client, cfg)
+	mtrcs := metrics.NewMetricsCollection()
+
+	var metricsReporter metrics.MetricsReporter
+	switch cfg.Scheme {
+	case "http", "https":
+		metricsReporter = reporter.NewHTTPReporter(cfg)
+	case "grpc":
+		var err error
+		metricsReporter, err = reporter.NewGRPCReporter(cfg)
+		if err != nil {
+			log.Panic(err)
+		}
+	default:
+		log.Panic("invalid protocol")
+	}
+	defer metricsReporter.Close()
 
 	jobsCh := make(chan metrics.MetricsCollection, runtime.GOMAXPROCS(0))
 
@@ -45,7 +59,7 @@ func main() {
 		go func() {
 			defer wg.Done()
 			for job := range jobsCh {
-				job.ReportMetrics()
+				metricsReporter.ReportMetrics(job)
 			}
 		}()
 	}

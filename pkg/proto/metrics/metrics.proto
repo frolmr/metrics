@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package metrics;
+
+option go_package = "metrics.proto";
+
+service Metrics {
+    rpc UpdateMetricsBulk(UpdateMetricsBulkRequest) returns (Ack);
+}
+
+message UpdateMetricsBulkRequest { repeated Metric metrics = 1; }
+
+message Metric {
+    enum MType {
+        MTYPE_UNDEFINED = 0;
+        MTYPE_COUNTER = 1;
+        MTYPE_GAUGE = 2;
+    }
+    string key = 1;
+    MType type = 2;
+    oneof m_value {
+        int64 delta = 3;
+        double value = 4;
+    }
+}
+
+message Ack {
+    bool received = 1;
+    optional string error = 2;
+}
