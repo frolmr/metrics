@@ -30,6 +30,7 @@ type ServerConfig struct {
 	StoreIntervalSec int    `json:"store_interval"`
 	StoreFile        string `json:"store_file"`
 	DatabaseDSN      string `json:"database_dsn"`
+	TrustedSubnet    string `json:"trusted_subnet"`
 }
 
 // ReadAgentConfig reads agent configuration from JSON file
