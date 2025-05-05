@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"flag"
+	"net"
 	"os"
 	"path/filepath"
 	"testing"
@@ -627,6 +628,217 @@ func TestServerConfigPriority(t *testing.T) {
 			assert.Equal(t, tt.expected.Restore, cfg.Restore)
 			assert.Equal(t, tt.expected.DatabaseDSN, cfg.DatabaseDSN)
 			assert.Equal(t, tt.expected.Key, cfg.Key)
+		})
+	}
+}
+
+func TestParseTrustedSubnetFlag(t *testing.T) {
+	type want struct {
+		subnet *net.IPNet
+	}
+	tests := []struct {
+		name    string
+		args    []string
+		want    want
+		wantErr bool
+	}{
+		{
+			name: "valid CIDR flag",
+			args: []string{"-t", "192.168.1.0/24"},
+			want: want{
+				subnet: &net.IPNet{
+					IP:   net.IPv4(192, 168, 1, 0),
+					Mask: net.IPv4Mask(255, 255, 255, 0),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name:    "invalid CIDR flag",
+			args:    []string{"-t", "invalid_cidr"},
+			want:    want{subnet: nil},
+			wantErr: true,
+		},
+		{
+			name:    "no flag",
+			args:    []string{},
+			want:    want{subnet: nil},
+			wantErr: false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			os.Args = append([]string{"cmd"}, test.args...)
+			flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+
+			config, err := NewConfig()
+
+			if test.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+
+			if test.want.subnet == nil {
+				assert.Nil(t, config.TrustedSubnet)
+			} else {
+				require.NotNil(t, config.TrustedSubnet)
+				assert.Equal(t, test.want.subnet.String(), config.TrustedSubnet.String())
+			}
+		})
+	}
+}
+
+func TestTrustedSubnetEnvVariables(t *testing.T) {
+	type want struct {
+		subnet *net.IPNet
+	}
+	tests := []struct {
+		name     string
+		args     []string
+		envName  string
+		envValue string
+		want     want
+		wantErr  bool
+	}{
+		{
+			name:     "valid CIDR env",
+			envName:  "TRUSTED_SUBNET",
+			envValue: "10.0.0.0/8",
+			want: want{
+				subnet: &net.IPNet{
+					IP:   net.IPv4(10, 0, 0, 0),
+					Mask: net.IPv4Mask(255, 0, 0, 0),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name:     "invalid CIDR env",
+			envName:  "TRUSTED_SUBNET",
+			envValue: "invalid_cidr",
+			want:     want{subnet: nil},
+			wantErr:  true,
+		},
+		{
+			name:     "no env",
+			envName:  "OTHER_VAR",
+			envValue: "value",
+			want:     want{subnet: nil},
+			wantErr:  false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			os.Setenv(test.envName, test.envValue)
+			defer os.Unsetenv(test.envName)
+
+			os.Args = append([]string{"cmd"}, test.args...)
+			flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+
+			config, err := NewConfig()
+
+			if test.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+
+			if test.want.subnet == nil {
+				assert.Nil(t, config.TrustedSubnet)
+			} else {
+				require.NotNil(t, config.TrustedSubnet)
+				assert.Equal(t, test.want.subnet.String(), config.TrustedSubnet.String())
+			}
+		})
+	}
+}
+
+func TestTrustedSubnetConfigFile(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	configContent := `{
+		"trusted_subnet": "172.16.0.0/12"
+	}`
+	configPath := filepath.Join(tmpDir, "config.json")
+	err := os.WriteFile(configPath, []byte(configContent), 0600)
+	require.NoError(t, err)
+
+	os.Args = []string{"cmd", "-config", configPath}
+	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+
+	config, err := NewConfig()
+	require.NoError(t, err)
+
+	expected := &net.IPNet{
+		IP:   net.IPv4(172, 16, 0, 0),
+		Mask: net.IPv4Mask(255, 240, 0, 0),
+	}
+	require.NotNil(t, config.TrustedSubnet)
+	assert.Equal(t, expected.String(), config.TrustedSubnet.String())
+}
+
+func TestTrustedSubnetPriority(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	configContent := `{
+		"trusted_subnet": "10.0.0.0/8"
+	}`
+	configPath := filepath.Join(tmpDir, "config.json")
+	err := os.WriteFile(configPath, []byte(configContent), 0600)
+	require.NoError(t, err)
+
+	tests := []struct {
+		name     string
+		args     []string
+		envVars  map[string]string
+		expected string
+	}{
+		{
+			name:     "config file only",
+			args:     []string{"-config", configPath},
+			expected: "10.0.0.0/8",
+		},
+		{
+			name:     "flag overrides config",
+			args:     []string{"-config", configPath, "-t", "192.168.1.0/24"},
+			expected: "192.168.1.0/24",
+		},
+		{
+			name: "env overrides all",
+			args: []string{"-config", configPath, "-t", "192.168.1.0/24"},
+			envVars: map[string]string{
+				"TRUSTED_SUBNET": "172.16.0.0/12",
+			},
+			expected: "172.16.0.0/12",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			for k, v := range test.envVars {
+				os.Setenv(k, v)
+			}
+			defer func() {
+				for k := range test.envVars {
+					os.Unsetenv(k)
+				}
+			}()
+
+			os.Args = append([]string{"cmd"}, test.args...)
+			flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+
+			config, err := NewConfig()
+			require.NoError(t, err)
+
+			if test.expected == "" {
+				assert.Nil(t, config.TrustedSubnet)
+			} else {
+				require.NotNil(t, config.TrustedSubnet)
+				assert.Equal(t, test.expected, config.TrustedSubnet.String())
+			}
 		})
 	}
 }

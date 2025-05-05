@@ -7,6 +7,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"flag"
+	"net"
 	"os"
 	"strconv"
 	"time"
@@ -18,14 +19,15 @@ import (
 const (
 	maxParamCount = 4
 
-	schemeEnvName      = "SCHEME"
-	addressEnvName     = "ADDRESS"
-	storeIntervalEnv   = "STORE_INTERVAL"
-	fileStoragePathEnv = "FILE_STORAGE_PATH"
-	restoreEnv         = "RESTORE"
-	databaseDsnEnv     = "DATABASE_DSN"
-	keyEnv             = "KEY"
-	cryptoKeyEnvName   = "CRYPTO_KEY"
+	schemeEnvName        = "SCHEME"
+	addressEnvName       = "ADDRESS"
+	storeIntervalEnv     = "STORE_INTERVAL"
+	fileStoragePathEnv   = "FILE_STORAGE_PATH"
+	restoreEnv           = "RESTORE"
+	databaseDsnEnv       = "DATABASE_DSN"
+	keyEnv               = "KEY"
+	cryptoKeyEnvName     = "CRYPTO_KEY"
+	trustedSubnetEnvName = "TRUSTED_SUBNET"
 )
 
 const (
@@ -49,6 +51,8 @@ type Config struct {
 	Key       string
 	CryptoKey *rsa.PrivateKey
 	Profiling bool
+
+	TrustedSubnet *net.IPNet
 }
 
 // NewConfig setups server config: read flags and env variables.
@@ -67,6 +71,8 @@ func NewConfig() (*Config, error) {
 	keyValues := make([]string, 0, maxParamCount)
 	cryptoKeyValues := make([]string, 0, maxParamCount)
 
+	trustedSubnets := make([]string, 0, maxParamCount)
+
 	var (
 		serverScheme      string
 		serverHTTPAddress string
@@ -78,6 +84,7 @@ func NewConfig() (*Config, error) {
 		cryptoKeyPath     string
 		profile           bool
 		configFile        string
+		trustedSubnet     string
 	)
 
 	schemeValues = append(schemeValues, defaultScheme)
@@ -96,6 +103,7 @@ func NewConfig() (*Config, error) {
 	flag.StringVar(&cryptoKeyPath, "crypto-key", "", "path to private key for decryption")
 	flag.BoolVar(&profile, "p", profile, "bool flag for app profiling")
 	flag.StringVar(&configFile, "config", "", "path to config file")
+	flag.StringVar(&trustedSubnet, "t", "", "CIDR for trusted subnet")
 	flag.Parse()
 
 	if configFile != "" {
@@ -127,6 +135,9 @@ func NewConfig() (*Config, error) {
 			}
 			if fileCfg.DatabaseDSN != "" {
 				databaseValues = append(databaseValues, fileCfg.DatabaseDSN)
+			}
+			if fileCfg.TrustedSubnet != "" {
+				trustedSubnets = append(trustedSubnets, fileCfg.TrustedSubnet)
 			}
 		}
 	}
@@ -165,6 +176,10 @@ func NewConfig() (*Config, error) {
 		cryptoKeyValues = append(cryptoKeyValues, cryptoKeyPath)
 	}
 
+	if trustedSubnet != "" {
+		trustedSubnets = append(trustedSubnets, trustedSubnet)
+	}
+
 	if serverSchemeEnv := os.Getenv(schemeEnvName); serverSchemeEnv != "" {
 		schemeValues = append(schemeValues, serverSchemeEnv)
 	}
@@ -197,6 +212,10 @@ func NewConfig() (*Config, error) {
 
 	if cryptoKeyEnv := os.Getenv(cryptoKeyEnvName); cryptoKeyEnv != "" {
 		cryptoKeyValues = append(cryptoKeyValues, cryptoKeyEnv)
+	}
+
+	if trustedSubnetEnv := os.Getenv(trustedSubnetEnvName); trustedSubnetEnv != "" {
+		trustedSubnets = append(trustedSubnets, trustedSubnetEnv)
 	}
 
 	schemeConfig := schemeValues[len(schemeValues)-1]
@@ -233,6 +252,14 @@ func NewConfig() (*Config, error) {
 		return nil, err
 	}
 
+	var trustedSubnetConfig *net.IPNet
+	if len(trustedSubnets) != 0 {
+		_, trustedSubnetConfig, err = net.ParseCIDR(trustedSubnets[len(trustedSubnets)-1])
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return &Config{
 		Scheme:          schemeConfig,
 		HTTPAddress:     addressConfig,
@@ -243,6 +270,7 @@ func NewConfig() (*Config, error) {
 		Key:             keyConfig,
 		CryptoKey:       privateKey,
 		Profiling:       profile,
+		TrustedSubnet:   trustedSubnetConfig,
 	}, nil
 }
 
