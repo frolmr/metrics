@@ -1,4 +1,4 @@
-package metrics
+package reporter
 
 import (
 	"bytes"
@@ -17,9 +17,9 @@ import (
 	"testing"
 
 	"github.com/frolmr/metrics/internal/agent/config"
+	"github.com/frolmr/metrics/internal/agent/metrics"
 	"github.com/frolmr/metrics/internal/domain"
 	"github.com/frolmr/metrics/pkg/signer"
-	"github.com/go-resty/resty/v2"
 	"github.com/jarcoal/httpmock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -31,26 +31,21 @@ func generateTestRSAKeys(t *testing.T) (*rsa.PrivateKey, *rsa.PublicKey) {
 	return privateKey, &privateKey.PublicKey
 }
 
-func TestMetricsReporter(t *testing.T) {
+func TestHTTPReporter(t *testing.T) {
 	tests := []struct {
 		name         string
-		metrics      *MetricsCollection
+		metrics      metrics.MetricsCollection
 		mockResponse *http.Response
 		mockError    error
 	}{
 		{
 			name: "successful report",
-			metrics: &MetricsCollection{
+			metrics: metrics.MetricsCollection{
 				GaugeMetrics: map[string]float64{
 					"test_gauge": 123.45,
 				},
 				CounterMetrics: map[string]int64{
 					"test_counter": 67,
-				},
-				ReportClient: resty.New(),
-				Config: &config.Config{
-					Scheme:      "http",
-					HTTPAddress: "localhost:8080",
 				},
 			},
 			mockResponse: &http.Response{
@@ -60,14 +55,9 @@ func TestMetricsReporter(t *testing.T) {
 		},
 		{
 			name: "server error - no retry",
-			metrics: &MetricsCollection{
+			metrics: metrics.MetricsCollection{
 				GaugeMetrics: map[string]float64{
 					"test_gauge": 123.45,
-				},
-				ReportClient: resty.New(),
-				Config: &config.Config{
-					Scheme:      "http",
-					HTTPAddress: "localhost:8080",
 				},
 			},
 			mockResponse: &http.Response{
@@ -77,21 +67,22 @@ func TestMetricsReporter(t *testing.T) {
 		},
 		{
 			name: "empty metrics - no request",
-			metrics: &MetricsCollection{
+			metrics: metrics.MetricsCollection{
 				GaugeMetrics:   map[string]float64{},
 				CounterMetrics: map[string]int64{},
-				ReportClient:   resty.New(),
-				Config: &config.Config{
-					Scheme:      "http",
-					HTTPAddress: "localhost:8080",
-				},
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			httpmock.ActivateNonDefault(tt.metrics.ReportClient.GetClient())
+			cfg := &config.Config{
+				Scheme:      "http",
+				HTTPAddress: "localhost:8080",
+			}
+
+			reporter := NewHTTPReporter(cfg)
+			httpmock.ActivateNonDefault(reporter.client.GetClient())
 			defer httpmock.DeactivateAndReset()
 
 			if tt.mockResponse != nil {
@@ -108,7 +99,7 @@ func TestMetricsReporter(t *testing.T) {
 				)
 			}
 
-			tt.metrics.ReportMetrics()
+			reporter.ReportMetrics(tt.metrics)
 
 			info := httpmock.GetCallCountInfo()
 			callCount := info["POST http://localhost:8080/updates/"]
@@ -130,15 +121,8 @@ func TestReportMetricsWithSignature(t *testing.T) {
 		Key:         "test-key",
 	}
 
-	mc := &MetricsCollection{
-		GaugeMetrics: map[string]float64{
-			"test_gauge": 123.45,
-		},
-		ReportClient: resty.New(),
-		Config:       cfg,
-	}
-
-	httpmock.ActivateNonDefault(mc.ReportClient.GetClient())
+	reporter := NewHTTPReporter(cfg)
+	httpmock.ActivateNonDefault(reporter.client.GetClient())
 	defer httpmock.DeactivateAndReset()
 
 	httpmock.RegisterResponder(
@@ -165,17 +149,19 @@ func TestReportMetricsWithSignature(t *testing.T) {
 		},
 	)
 
-	mc.ReportMetrics()
+	metrics := metrics.MetricsCollection{
+		GaugeMetrics: map[string]float64{
+			"test_gauge": 123.45,
+		},
+	}
+	reporter.ReportMetrics(metrics)
 
 	info := httpmock.GetCallCountInfo()
 	assert.Equal(t, 1, info["POST http://localhost:8080/updates/"])
 }
 
 func TestCompressPayload(t *testing.T) {
-	mc := &MetricsCollection{
-		ReportClient: resty.New(),
-		Config:       &config.Config{},
-	}
+	reporter := NewHTTPReporter(&config.Config{})
 
 	tests := []struct {
 		name     string
@@ -215,7 +201,7 @@ func TestCompressPayload(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compressed, err := mc.compressPayload(tt.input)
+			compressed, err := reporter.compressPayload(tt.input)
 			require.NoError(t, err)
 			require.NotNil(t, compressed)
 
@@ -275,15 +261,8 @@ func TestReportMetricsWithEncryption(t *testing.T) {
 		CryptoKey:   publicKey,
 	}
 
-	mc := &MetricsCollection{
-		GaugeMetrics: map[string]float64{
-			"test_gauge": 123.45,
-		},
-		ReportClient: resty.New(),
-		Config:       cfg,
-	}
-
-	httpmock.ActivateNonDefault(mc.ReportClient.GetClient())
+	reporter := NewHTTPReporter(cfg)
+	httpmock.ActivateNonDefault(reporter.client.GetClient())
 	defer httpmock.DeactivateAndReset()
 
 	httpmock.RegisterResponder(
@@ -314,7 +293,12 @@ func TestReportMetricsWithEncryption(t *testing.T) {
 		},
 	)
 
-	mc.ReportMetrics()
+	metrics := metrics.MetricsCollection{
+		GaugeMetrics: map[string]float64{
+			"test_gauge": 123.45,
+		},
+	}
+	reporter.ReportMetrics(metrics)
 
 	info := httpmock.GetCallCountInfo()
 	assert.Equal(t, 1, info["POST http://localhost:8080/updates/"])
@@ -327,15 +311,8 @@ func TestReportMetricsWithoutEncryption(t *testing.T) {
 		CryptoKey:   nil,
 	}
 
-	mc := &MetricsCollection{
-		GaugeMetrics: map[string]float64{
-			"test_gauge": 123.45,
-		},
-		ReportClient: resty.New(),
-		Config:       cfg,
-	}
-
-	httpmock.ActivateNonDefault(mc.ReportClient.GetClient())
+	reporter := NewHTTPReporter(cfg)
+	httpmock.ActivateNonDefault(reporter.client.GetClient())
 	defer httpmock.DeactivateAndReset()
 
 	httpmock.RegisterResponder(
@@ -360,7 +337,12 @@ func TestReportMetricsWithoutEncryption(t *testing.T) {
 		},
 	)
 
-	mc.ReportMetrics()
+	metrics := metrics.MetricsCollection{
+		GaugeMetrics: map[string]float64{
+			"test_gauge": 123.45,
+		},
+	}
+	reporter.ReportMetrics(metrics)
 
 	info := httpmock.GetCallCountInfo()
 	assert.Equal(t, 1, info["POST http://localhost:8080/updates/"])
@@ -378,15 +360,8 @@ func TestReportMetricsWithEncryptionAndSignature(t *testing.T) {
 		Key:         "test-signature-key",
 	}
 
-	mc := &MetricsCollection{
-		GaugeMetrics: map[string]float64{
-			"test_gauge": 123.45,
-		},
-		ReportClient: resty.New(),
-		Config:       cfg,
-	}
-
-	httpmock.ActivateNonDefault(mc.ReportClient.GetClient())
+	reporter := NewHTTPReporter(cfg)
+	httpmock.ActivateNonDefault(reporter.client.GetClient())
 	defer httpmock.DeactivateAndReset()
 
 	httpmock.RegisterResponder(
@@ -422,7 +397,12 @@ func TestReportMetricsWithEncryptionAndSignature(t *testing.T) {
 		},
 	)
 
-	mc.ReportMetrics()
+	metrics := metrics.MetricsCollection{
+		GaugeMetrics: map[string]float64{
+			"test_gauge": 123.45,
+		},
+	}
+	reporter.ReportMetrics(metrics)
 
 	info := httpmock.GetCallCountInfo()
 	assert.Equal(t, 1, info["POST http://localhost:8080/updates/"])
@@ -437,24 +417,14 @@ func TestReportMetricsWithLargePayloadEncryption(t *testing.T) {
 		CryptoKey:   publicKey,
 	}
 
-	largeMetrics := make([]domain.Metrics, 0)
-	for i := 0; i < 100; i++ {
-		largeMetrics = append(largeMetrics, domain.Metrics{
-			ID:    "test_gauge_" + strconv.Itoa(i),
-			MType: domain.GaugeType,
-			Value: func() *float64 { v := float64(i); return &v }(),
-		})
-	}
-
-	mc := &MetricsCollection{
-		GaugeMetrics:   map[string]float64{},
-		CounterMetrics: map[string]int64{},
-		ReportClient:   resty.New(),
-		Config:         cfg,
-	}
-
-	httpmock.ActivateNonDefault(mc.ReportClient.GetClient())
+	reporter := NewHTTPReporter(cfg)
+	httpmock.ActivateNonDefault(reporter.client.GetClient())
 	defer httpmock.DeactivateAndReset()
+
+	largeGaugeMetrics := make(map[string]float64)
+	for i := 0; i < 100; i++ {
+		largeGaugeMetrics["test_gauge_"+strconv.Itoa(i)] = float64(i)
+	}
 
 	var receivedPayload []byte
 	httpmock.RegisterResponder(
@@ -473,10 +443,13 @@ func TestReportMetricsWithLargePayloadEncryption(t *testing.T) {
 		},
 	)
 
-	err := mc.reportMetrics(largeMetrics)
-	require.NoError(t, err)
+	metrics := metrics.MetricsCollection{
+		GaugeMetrics:   largeGaugeMetrics,
+		CounterMetrics: map[string]int64{},
+	}
+	reporter.ReportMetrics(metrics)
 
-	assert.True(t, len(receivedPayload) > privateKey.Size())
+	assert.True(t, len(receivedPayload) > privateKey.Size(), "encrypted payload should be larger than key size")
 	assert.Equal(t, 0, len(receivedPayload)%privateKey.Size(), "payload should be multiple of key size")
 
 	chunkSize := privateKey.Size()
@@ -484,15 +457,15 @@ func TestReportMetricsWithLargePayloadEncryption(t *testing.T) {
 
 	for i := 0; i < len(receivedPayload); i += chunkSize {
 		chunk := receivedPayload[i : i+chunkSize]
-		decryptedChunk, DecryptErr := rsa.DecryptPKCS1v15(rand.Reader, privateKey, chunk)
-		require.NoError(t, DecryptErr)
+		decryptedChunk, err := rsa.DecryptPKCS1v15(rand.Reader, privateKey, chunk)
+		require.NoError(t, err)
 		decryptedData = append(decryptedData, decryptedChunk...)
 	}
 
-	var metrics []domain.Metrics
-	err = json.Unmarshal(decryptedData, &metrics)
-	require.NoError(t, err)
-	assert.Len(t, metrics, 100)
+	var metricsList []domain.Metrics
+	err := json.Unmarshal(decryptedData, &metricsList)
+	require.NoError(t, err, "failed to unmarshal decrypted data")
+	assert.Len(t, metricsList, 100, "should have 100 metrics")
 }
 
 func TestReportMetricsEncryptionFailure(t *testing.T) {
@@ -512,24 +485,9 @@ func TestReportMetricsEncryptionFailure(t *testing.T) {
 		CryptoKey:   publicKey,
 	}
 
-	mc := &MetricsCollection{
-		GaugeMetrics: map[string]float64{
-			"test_gauge": 123.45,
-		},
-		CounterMetrics: map[string]int64{},
-		ReportClient:   resty.New(),
-		Config:         cfg,
-	}
+	reporter := NewHTTPReporter(cfg)
 
-	metrics := []domain.Metrics{
-		{
-			ID:    "test_gauge",
-			MType: domain.GaugeType,
-			Value: func() *float64 { v := 123.45; return &v }(),
-		},
-	}
-
-	err = mc.reportMetrics(metrics)
+	_, err = reporter.encryptPayload([]byte("test data"))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "mock reader error")
 }

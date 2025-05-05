@@ -31,8 +31,8 @@ func StringToFloat(stringValue string) (float64, error) {
 }
 
 func CheckSchemeFormat(scheme string) error {
-	if scheme != "http" && scheme != "https" {
-		return errors.New("bad scheme must be http or https")
+	if scheme != "http" && scheme != "https" && scheme != "grpc" {
+		return errors.New("bad scheme must be http/https or grpc")
 	}
 	return nil
 }
